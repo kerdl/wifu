@@ -1,0 +1,12 @@
+{
+  "ping": {
+    "domains": [
+      "google.com",
+      "amazon.com",
+      "microsoft.com"
+    ],
+    "timeout_ms": 2000,
+    "interval_ms": 500,
+    "max_errors": 3
+  }
+}
