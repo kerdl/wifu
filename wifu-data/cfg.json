@@ -8,5 +8,13 @@
     "timeout_ms": 2000,
     "interval_ms": 500,
     "max_errors": 3
+  },
+  "wifis": {
+    "networks": [
+      {
+        "ssid": "***REMOVED***",
+        "password": "***REMOVED***"
+      }
+    ]
   }
 }

@@ -5,6 +5,24 @@ use serde_derive::{Serialize, Deserialize};
 
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct WiFiNetwork {
+    pub ssid: String,
+    pub password: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WiFis {
+    pub networks: Vec<WiFiNetwork>,
+}
+impl Default for WiFis {
+    fn default() -> Self {
+        Self {
+            networks: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Ping {
     pub domains: Vec<String>,
     pub timeout_ms: u32,
@@ -30,7 +48,8 @@ impl Default for Ping {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub ping: Ping
+    pub ping: Ping,
+    pub wifis: WiFis
 }
 impl Config {
     pub async fn load() -> Result<Self, RwError> {
@@ -62,7 +81,8 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            ping: Ping::default()
+            ping: Ping::default(),
+            wifis: WiFis::default()
         }
     }
 }
