@@ -1,9 +1,42 @@
 use serde_derive::{Serialize, Deserialize};
+use windows::Win32::NetworkManagement::WiFi;
 
 
 #[derive(Serialize, Deserialize)]
 pub enum Authentication {
-    WPA2PSK
+    #[serde(rename = "open")]
+    Open,
+    #[serde(rename = "shared")]
+    Shared,
+    WPA,
+    WPAPSK,
+    WPA2,
+    WPA2PSK,
+    WPA3,
+    WPA3ENT192,
+    WPA3ENT,
+    WPA3SAE,
+    OWE,
+}
+impl Authentication {
+    fn from_dot11_auth_algorithm(auth_algo: WiFi::DOT11_AUTH_ALGORITHM) -> Self {
+        match auth_algo {
+            WiFi::DOT11_AUTH_ALGO_80211_OPEN => Self::Open,
+            WiFi::DOT11_AUTH_ALGO_80211_SHARED_KEY => Self::Shared,
+            WiFi::DOT11_AUTH_ALGO_WPA => Self::WPA,
+            WiFi::DOT11_AUTH_ALGO_WPA_PSK => Self::WPAPSK,
+            //WiFi::DOT11_AUTH_ALGO_WPA_NONE => Self::Open,
+            //WiFi::DOT11_AUTH_ALGO_RSNA => Self::Open,
+            //WiFi::DOT11_AUTH_ALGO_RSNA_PSK => Self::Open,
+            WiFi::DOT11_AUTH_ALGO_WPA3 => Self::WPA3,
+            WiFi::DOT11_AUTH_ALGO_WPA3_ENT_192 => Self::WPA3ENT192,
+            WiFi::DOT11_AUTH_ALGO_WPA3_SAE => Self::WPA3SAE,
+            WiFi::DOT11_AUTH_ALGO_OWE => Self::OWE,
+            WiFi::DOT11_AUTH_ALGO_WPA3_ENT => Self::WPA3ENT,
+            //WiFi::DOT11_AUTH_ALGO_IHV_START => Self::WPA3SAE,
+            //WiFi::DOT11_AUTH_ALGO_IHV_END => Self::OWE
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -13,17 +46,31 @@ pub enum Encryption {
 
 #[derive(Serialize, Deserialize)]
 pub enum KeyType {
+    #[serde(rename = "networkKey")]
+    NetworkKey,
     #[serde(rename = "passPhrase")]
     PassPhrase
 }
 
 #[derive(Serialize, Deserialize)]
 pub enum ConnectionType {
+    IBSS,
     ESS
+}
+impl ConnectionType {
+    pub fn from_dot11_bss_type(bss_type: WiFi::DOT11_BSS_TYPE) -> Self {
+        match bss_type {
+            WiFi::dot11_BSS_type_infrastructure => Self::ESS,
+            WiFi::dot11_BSS_type_independent => Self::IBSS,
+            _ => unreachable!()
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub enum ConnectionMode {
+    #[serde(rename = "auto")]
+    Auto,
     #[serde(rename = "manual")]
     Manual
 }
