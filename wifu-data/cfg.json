@@ -9,6 +9,11 @@
     "interval_ms": 500,
     "max_errors": 3
   },
+  "interfaces": {
+    "priority": [
+      "TP-Link Wireless USB Adapter"
+    ]
+  },
   "wifis": {
     "networks": [
       {

@@ -1,18 +1,17 @@
 pub mod data;
 pub mod handlers;
 
-use std::alloc::Layout;
+use data::win;
+
 use std::net::{ToSocketAddrs, SocketAddr};
 use std::path::PathBuf;
 use std::time::Duration;
 use lazy_static::lazy_static;
 use once_cell::sync::OnceCell;
-use windows::core::PCWSTR;
+use serde::Serialize;
 use winping::{AsyncPinger, Buffer};
 use windows::Win32::NetworkManagement::WiFi;
 use windows::Win32::Foundation::HANDLE;
-use windows::Win32::Security::Cryptography;
-use widestring::{U16CStr, U16CString};
 
 
 lazy_static! {
@@ -32,6 +31,17 @@ async fn main() {
     data::init_fs().await;
     let config = CONFIG.get().unwrap();
 
+    loop {
+        let mut wlan = win::Wlan::new(win::wlan::ClientVersion::Second).await.unwrap();
+        println!("wlan={:#?}", wlan);
+        let ifs = wlan.list_interfaces().unwrap();
+        println!("ifs={:#?}", ifs);
+        let scan = wlan.scan(ifs[0].guid).await.unwrap();
+        println!("scan={:#?}", scan);
+        std::thread::park()
+    }
+    
+
     println!("{:?}", config);
 
     let wlan_handle = unsafe {
@@ -47,9 +57,10 @@ async fn main() {
 
         handle
     };
-
+    
     println!("wlan_handle={:?}", wlan_handle);
 
+    
     let wlan_interfaces = unsafe {
         let mut list = std::mem::zeroed();
 
@@ -60,6 +71,9 @@ async fn main() {
     };
     let wlan_interfaces_deref = unsafe { *wlan_interfaces };
 
+    println!("wlan_interfaces_deref={:?}", wlan_interfaces_deref);
+
+
     if wlan_interfaces_deref.dwNumberOfItems < 1 {
         println!("no wlan devices detected");
         return
@@ -68,7 +82,7 @@ async fn main() {
     println!("wlan_interfaces={:?}", wlan_interfaces_deref);
 
     let mut first_interface = wlan_interfaces_deref.InterfaceInfo.get(0).unwrap().to_owned();
-    let desc = U16CStr::from_slice_truncate(first_interface.strInterfaceDescription.as_slice()).unwrap().to_string().unwrap();
+    let desc = widestring::U16CStr::from_slice_truncate(first_interface.strInterfaceDescription.as_slice()).unwrap().to_string().unwrap();
     println!("{}", desc);
 
     unsafe {
@@ -77,47 +91,8 @@ async fn main() {
     }
 
     let wifi_network = config.wifis.networks.get(0).unwrap();
-
-    let mut password_in = Cryptography::CRYPT_INTEGER_BLOB {
-        cbData: wifi_network.password.len() as u32,
-        pbData: wifi_network.password.as_ptr() as *mut u8,
-    };
-    unsafe {
-        println!("password_in={:?}", std::ptr::slice_from_raw_parts(password_in.pbData, password_in.cbData as usize).as_ref());
-    }
-    
-
-    let mut raw_encrypted_password = Cryptography::CRYPT_INTEGER_BLOB {
-        cbData: 0,
-        pbData: std::ptr::null_mut(),
-    };
-
-    unsafe {
-        let result = Cryptography::CryptProtectData(
-            &mut password_in,
-            std::mem::zeroed::<PCWSTR>(),
-            std::mem::zeroed(),
-            None,
-            std::mem::zeroed(),
-            Cryptography::CRYPTPROTECT_VERIFY_PROTECTION,
-            &mut raw_encrypted_password
-        );
-        println!("CryptProtectData -> {:?}", result);
-    };
-
-    println!("CryptProtectData encrypted_out -> {:?}", raw_encrypted_password);
-
-    unsafe {
-        println!("password_in={:?}", std::ptr::slice_from_raw_parts(password_in.pbData, password_in.cbData as usize).as_ref());
-    }
-    
-    let encrypted_password = unsafe {
-        let content_ptr = std::ptr::slice_from_raw_parts(raw_encrypted_password.pbData, raw_encrypted_password.cbData as usize);
-        let content_ref = content_ptr.as_ref().unwrap();
-        let string = hex::encode_upper(content_ref);
-        println!("encrypted wifi password: {}", string);
-        string
-    };
+    let wifi_network_ssid_u16 = widestring::U16CString::from_str(&wifi_network.ssid).unwrap();
+    let wifi_network_ssid_pcwstr = windows::core::PCWSTR::from_raw(wifi_network_ssid_u16.as_ptr());
 
     unsafe {
         unsafe extern "system" fn scan_list_refresh(notify: *mut WiFi::L2_NOTIFICATION_DATA, context: *mut core::ffi::c_void) {
@@ -134,6 +109,7 @@ async fn main() {
             None,
             None
         );
+
 
         let start = tokio::time::Instant::now();
         let result = WiFi::WlanScan(wlan_handle, &mut first_interface.InterfaceGuid, None, None, None);
@@ -153,7 +129,9 @@ async fn main() {
         }
 
         println!("lock released! NIG took {:?}", start.elapsed());
+        
     }
+
 
     let networks = unsafe {
         let mut networks_out = std::mem::zeroed();
@@ -199,60 +177,126 @@ async fn main() {
         println!("{} was not found in scanned wifis", wifi_network.ssid);
         return;
     }
-    let mut selected_network = selected_network.unwrap();
+    let selected_network = selected_network.unwrap();
 
+    println!("!!!!!!!!!!!!! selected_network={:?}", selected_network);
 
     let profile = data::profile::WLANProfile {
+        xmlns: data::profile::XMLNS_PROFILE_V1.to_string(),
         name: wifi_network.ssid.clone(),
         ssid_config: data::profile::SSIDConfig::from_string(wifi_network.ssid.clone()),
         connection_type: data::profile::ConnectionType::from_dot11_bss_type(selected_network.dot11BssType),
         connection_mode: data::profile::ConnectionMode::Manual,
-        auto_switch: false,
+        auto_switch: None,
         msm: data::profile::MSM {
             security: data::profile::Security {
                 auth_encryption: data::profile::AuthEncryption {
                     authentication: data::profile::Authentication::from_dot11_auth_algorithm(selected_network.dot11DefaultAuthAlgorithm),
-                    encryption: data::profile::Encryption::from_dot11,
+                    encryption: data::profile::Encryption::from_dot11_cipher_algorithm(selected_network.dot11DefaultCipherAlgorithm),
                     use_one_x: false,
                 },
-                shared_key: data::profile::SharedKey {
-                    key_type: data::profile::KeyType::PassPhrase,
-                    protected: true,
-                    key_material: encrypted_password,
-                }
+                // the encryption of this password is performed by WlanSetProfile
+                shared_key: if wifi_network.password.is_some() {
+                    let k = data::profile::SharedKey {
+                        key_type: data::profile::KeyType::PassPhrase,
+                        protected: false,
+                        key_material: wifi_network.password.as_ref().unwrap().clone()
+                    };
+                    Some(k)
+                } else {
+                    None
+                },
             }
         },
         mac_randomization: data::profile::MacRandomization {
+            xmlns: data::profile::XMLNS_PROFILE_V3.to_string(),
             enable_randomization: false,
         }
     };
 
+    println!("profile: {:#?}", profile);
+
     unsafe {
+        let mut xml_profile: String = "".to_string();
+        let mut ser = quick_xml::se::Serializer::new(&mut xml_profile);
+        ser.indent('\t', 1);
+        profile.serialize(ser).unwrap();
+        xml_profile = format!("<?xml version=\"1.0\"?>\n{}\n", xml_profile);
+
+        tokio::fs::write("./generated-profile.xml", xml_profile.as_bytes()).await.unwrap();
+
+        let u16cstring = widestring::U16CString::from_str(&xml_profile).unwrap();
+        println!("u16cstring={:?}", u16cstring);
+        let pcwstr = windows::core::PCWSTR::from_raw(u16cstring.as_ptr());
+        println!("pcwstr={:?}", pcwstr);
+        println!("pcwstr.as_wide()={:?}", pcwstr.as_wide());
+
+        println!("XML PROFILE: {}", String::from_utf16_lossy(pcwstr.as_wide()));
+
+        let mut existing_profile = std::mem::zeroed();
+        let existing_profile_result = WiFi::WlanGetProfile(
+            wlan_handle,
+            &first_interface.InterfaceGuid,
+            wifi_network_ssid_pcwstr,
+            None,
+            &mut existing_profile,
+            None,
+            None
+        );
+        println!("existing_profile_result={}", existing_profile_result);
+
+        if existing_profile_result == windows::Win32::Foundation::ERROR_NOT_FOUND.0 {
+            println!("existing profile not found, setting...");
+            let mut reason_code = 0;
+
+            let result = WiFi::WlanSetProfile(
+                wlan_handle,
+                &first_interface.InterfaceGuid,
+                0,
+                pcwstr,
+                None,
+                false,
+                None,
+                &mut reason_code
+            );
+
+            println!("reason_code={}", reason_code);
+            println!("WlanSetProfile -> {}", result);
+        } else {
+            println!("existing_profile={:?}", String::from_utf16_lossy(existing_profile.as_wide()));
+        }
+
         let mut params = WiFi::WLAN_CONNECTION_PARAMETERS {
-            wlanConnectionMode: WiFi::wlan_connection_mode_temporary_profile,
-            strProfile: PCWSTR::from_raw(U16CString::from_str(wifi_network.ssid.as_str()).unwrap().as_ptr()),
-            ..Default::default()
+            wlanConnectionMode: WiFi::wlan_connection_mode_profile,
+            strProfile: wifi_network_ssid_pcwstr,
+            pDot11Ssid: std::ptr::null_mut(),
+            pDesiredBssidList: std::ptr::null_mut(),
+            dot11BssType: selected_network.dot11BssType,
+            //dwFlags: WiFi::WLAN_CONNECTION_HIDDEN_NETWORK,
+            dwFlags: 0,
+            //..Default::default()
         };
     
-        let result = WiFi::WlanConnect(wlan_handle, &mut first_interface.InterfaceGuid, &mut params, None);
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let result = WiFi::WlanConnect(
+            wlan_handle,
+            &first_interface.InterfaceGuid,
+            &params,
+            None
+        );
         println!("WlanConnect -> {}", result);
     }
 
+    let last_err = unsafe { windows::Win32::Foundation::GetLastError() };
+    println!("GetLastError -> {:?}", last_err);
+
     unsafe {
-        println!("raw_encrypted_password.pbData={:?}", raw_encrypted_password.pbData);
-        println!("*raw_encrypted_password.pbData={:?}", *raw_encrypted_password.pbData);
-        println!("LocalFree...");
-        let result = windows::Win32::System::Memory::LocalFree(windows::Win32::Foundation::HLOCAL(raw_encrypted_password.pbData as isize));
-        println!("raw_encrypted_password LocalFree -> {:?}", result);
-        //let last_err = windows::Win32::Foundation::GetLastError();
-        //println!("GetLastError -> {:?}", last_err);
-        //println!("cleaning password_in_ptr memory...");
-        //Cryptography::CryptMemFree(Some(password_in_ptr as *const core::ffi::c_void));
-        //println!("cleaning encrypted_out_ptr memory...");
-        //Cryptography::CryptMemFree(Some(encrypted_out_ptr as *const core::ffi::c_void));
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        WiFi::WlanDisconnect(wlan_handle, &first_interface.InterfaceGuid, None);
         WiFi::WlanFreeMemory(networks as *const core::ffi::c_void);
         WiFi::WlanCloseHandle(wlan_handle, None)
     };
+
     std::thread::park();
     return;
 

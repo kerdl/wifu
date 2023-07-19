@@ -1,13 +1,12 @@
 use crate::data::error::RwError;
 
-use std::{net::Ipv4Addr, vec};
 use serde_derive::{Serialize, Deserialize};
 
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WiFiNetwork {
     pub ssid: String,
-    pub password: String
+    pub password: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -18,6 +17,18 @@ impl Default for WiFis {
     fn default() -> Self {
         Self {
             networks: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Interfaces {
+    pub priority: Vec<String>,
+}
+impl Default for Interfaces {
+    fn default() -> Self {
+        Self {
+            priority: vec![]
         }
     }
 }
@@ -49,6 +60,7 @@ impl Default for Ping {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub ping: Ping,
+    pub interfaces: Interfaces,
     pub wifis: WiFis
 }
 impl Config {
@@ -82,6 +94,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             ping: Ping::default(),
+            interfaces: Interfaces::default(),
             wifis: WiFis::default()
         }
     }
