@@ -1,4 +1,4 @@
-use crate::data::app::error as app_err;
+use crate::data::app;
 use crate::data::win::wlan::notification as wlan_notif;
 
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -46,9 +46,9 @@ pub struct Notification {
     pub guid: GUID
 }
 impl Notification {
-    pub fn from_l2_notification_data(data: WiFi::L2_NOTIFICATION_DATA) -> app_err::Result<Self> {
+    pub fn from_l2_notification_data(data: WiFi::L2_NOTIFICATION_DATA) -> app::Result<Self> {
         if data.NotificationSource != wlan_notif::Source::Acm.to_u32().unwrap() {
-            return Err(app_err::Error::NotAnAcmNotification)
+            return Err(app::Error::NotAnAcmNotification)
         }
 
         let this = Self {

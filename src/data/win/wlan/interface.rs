@@ -1,4 +1,4 @@
-use num_traits::{FromPrimitive, ToPrimitive};
+use num_traits::FromPrimitive;
 use num_derive::{FromPrimitive, ToPrimitive};
 use windows::core::GUID;
 use windows::Win32::NetworkManagement::WiFi;

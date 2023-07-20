@@ -36,12 +36,27 @@ async fn main() {
         println!("wlan={:#?}", wlan);
         let ifs = wlan.list_interfaces().unwrap();
         println!("ifs={:#?}", ifs);
-        let scan = wlan.scan(ifs[0].guid).await.unwrap();
+
+        let iface = &ifs[0];
+
+        let scan = wlan.scan(&iface.guid).await.unwrap();
         println!("scan={:#?}", scan);
-        std::thread::park()
+        let networks = wlan.available_networks(&iface.guid).unwrap();
+        println!("networks={:#?}", networks);
+
+        let network = networks.iter().find(|n| n.ssid == "***REMOVED***");
+        if network.is_none() { panic!("no desired network available")}
+        let network = network.unwrap();
+
+        println!("network={:?}", network);
+
+        let profile = wlan.get_profile(&iface.guid, &network.ssid);
+        println!("profile={:?}", profile);
+        std::thread::park();
     }
     
-
+    
+    /* 
     println!("{:?}", config);
 
     let wlan_handle = unsafe {
@@ -359,4 +374,5 @@ async fn main() {
             }
         }
     }
+    */
 }

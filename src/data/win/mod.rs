@@ -1,4 +1,5 @@
 pub mod wlan;
+pub mod util;
 pub mod guid;
 pub mod error;
 

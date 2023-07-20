@@ -3,9 +3,11 @@ use num_derive::{FromPrimitive, ToPrimitive};
 
 #[derive(Debug, FromPrimitive, ToPrimitive)]
 pub enum Error {
-    InvalidParameter = 87,
+    AccessDenied = 5,
     NotEnoughMemory = 8,
-    RemoteSessionLimitExceeded = 1220
+    InvalidParameter = 87,
+    NotFound = 1168,
+    RemoteSessionLimitExceeded = 1220,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
