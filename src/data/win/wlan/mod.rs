@@ -165,7 +165,8 @@ impl Wlan {
         while let Ok(notif) = acm_notify_receiver.recv().await {
             match notif.code {
                 AcmNotifCode::ScanComplete => return Ok(()),
-                _ => ()
+                AcmNotifCode::ScanFail => {println!("SCAN FAILED!"); return Ok(())},
+                _ => println!("scan() code recv: {:?}", notif.code)
             }
         }
 
