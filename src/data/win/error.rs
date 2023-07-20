@@ -2,7 +2,7 @@ use num_derive::{FromPrimitive, ToPrimitive};
 
 
 #[derive(Debug, FromPrimitive, ToPrimitive)]
-pub enum Error {
+pub enum NativeError {
     AccessDenied = 5,
     NotEnoughMemory = 8,
     InvalidParameter = 87,
@@ -10,4 +10,9 @@ pub enum Error {
     RemoteSessionLimitExceeded = 1220,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+#[derive(Debug)]
+pub enum Error {
+    Native(NativeError),
+}
+
+pub type NativeResult<T> = std::result::Result<T, NativeError>;

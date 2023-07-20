@@ -46,7 +46,7 @@ pub struct Wlan {
 }
 // --------- Constructors ---------
 impl Wlan {
-    pub async fn new(client_version: ClientVersion) -> win::Result<Self> {
+    pub async fn new(client_version: ClientVersion) -> win::NativeResult<Self> {
         let mut handle = unsafe { std::mem::zeroed() };
         let mut negotiated_version = unsafe { std::mem::zeroed() };
         let id = rand::thread_rng().gen::<u32>();
@@ -61,7 +61,7 @@ impl Wlan {
         };
         
         if handle_result != win::SUCCESS {
-            return Err(win::Error::from_u32(handle_result).unwrap())
+            return Err(win::NativeError::from_u32(handle_result).unwrap())
         }
 
         let (acm_notify_sender, acm_notify_receiver) = {
@@ -104,7 +104,7 @@ impl Wlan {
         sender.send(notification).unwrap();
     }
 
-    async fn register_acm_notifs(&self) -> win::Result<()> {
+    async fn register_acm_notifs(&self) -> win::NativeResult<()> {
         let result = unsafe {
             WiFi::WlanRegisterNotification(
                 self.handle,
@@ -118,7 +118,7 @@ impl Wlan {
         };
 
         if result != win::SUCCESS {
-            return Err(win::Error::from_u32(result).unwrap())
+            return Err(win::NativeError::from_u32(result).unwrap())
         }
 
         Ok(())
@@ -126,13 +126,27 @@ impl Wlan {
 }
 // --------- User actions ---------
 impl Wlan {
-    pub fn list_interfaces(&self) -> win::Result<Vec<Interface>> {
+    /// ## Get all available wireless interfaces
+    /// 
+    /// This includes interfaces such as USB dongles,
+    /// PCIe wireless adapters, virtual interfaces, etc.
+    /// Anything that works with WI-FI, really.
+    /// 
+    /// Each interface has its own unique `GUID`, which
+    /// acts as an identifier for all other functions,
+    /// such as `scan`, `get_profile` and `connect`.
+    ///
+    /// ## Returns
+    /// `Result` wraps 2 values:
+    /// - An error, returned by a `WlanEnumInterfaces` function.
+    /// - A `Vec` of all available interfaces.
+    pub fn list_interfaces(&self) -> win::NativeResult<Vec<Interface>> {
         let mut output: Vec<Interface> = vec![];
         let mut list: *mut WiFi::WLAN_INTERFACE_INFO_LIST = unsafe { std::mem::zeroed() };
         let list_result = unsafe { WiFi::WlanEnumInterfaces(self.handle, None, &mut list) };
 
         if list_result != win::SUCCESS {
-            return Err(win::Error::from_u32(list_result).unwrap())
+            return Err(win::NativeError::from_u32(list_result).unwrap())
         }
 
         unsafe {
@@ -149,13 +163,33 @@ impl Wlan {
         Ok(output)
     }
 
-    pub async fn scan(&mut self, guid: &GUID) -> win::Result<()> {
+    /// ## Scan for WI-FI networks
+    /// 
+    /// Windows periodically performs scans automatically,
+    /// but this functions allows to perform it manually,
+    /// "right here, right now".
+    /// 
+    /// Usually, a full scan takes 1-2 seconds.
+    /// 
+    /// ## Parameters
+    /// - `guid`: A GUID of the interface to perform
+    /// a scan on.
+    /// 
+    /// ## Returns
+    /// `Result` wraps 2 values:
+    /// - An error, returned by a `WlanScan` function.
+    /// Means that scan had failed from the very beginning.
+    /// - A `bool` value. `true` means that scan was successful,
+    /// and `false` means that it failed in the process.
+    /// One of the reasons could be unplugging USB WI-FI
+    /// adapter during the scan.
+    pub async fn scan(&mut self, guid: &GUID) -> win::NativeResult<bool> {
         let result = unsafe {
             WiFi::WlanScan(self.handle, guid, None, None, None)
         };
 
         if result != win::SUCCESS {
-            return Err(win::Error::from_u32(result).unwrap())
+            return Err(win::NativeError::from_u32(result).unwrap())
         }
 
         let mut acm_notify_receiver = {
@@ -164,16 +198,32 @@ impl Wlan {
 
         while let Ok(notif) = acm_notify_receiver.recv().await {
             match notif.code {
-                AcmNotifCode::ScanComplete => return Ok(()),
-                AcmNotifCode::ScanFail => {println!("SCAN FAILED!"); return Ok(())},
+                AcmNotifCode::ScanComplete => return Ok(true),
+                AcmNotifCode::ScanFail => return Ok(false),
                 _ => println!("scan() code recv: {:?}", notif.code)
             }
         }
 
-        Ok(())
+        Ok(false)
     }
 
-    pub fn available_networks(&self, guid: &GUID) -> win::Result<Vec<Network>>{
+    /// ## Currently available WI-FI networks
+    /// Windows stores all currently available networks
+    /// and allows to list them using `WlanGetAvailableNetworkList`.
+    /// 
+    /// Note that to get the freshest list you should first
+    /// perform a scan using the `Wlan::scan` function, which
+    /// takes about 1-2 seconds to complete.
+    /// 
+    /// ## Parameters
+    /// - `guid`: A GUID of the interface from which
+    /// the available networks will return.
+    /// 
+    /// ## Returns
+    /// `Result` wraps 2 values:
+    /// - An error, returned by a `WlanGetAvailableNetworkList` function.
+    /// - A `Vec` of all currently available networks.
+    pub fn available_networks(&self, guid: &GUID) -> win::NativeResult<Vec<Network>>{
         let mut raw_networks = unsafe { std::mem::zeroed() };
         let result = unsafe {
             WiFi::WlanGetAvailableNetworkList(
@@ -186,7 +236,7 @@ impl Wlan {
         };
 
         if result != win::SUCCESS {
-            return Err(win::Error::from_u32(result).unwrap())
+            return Err(win::NativeError::from_u32(result).unwrap())
         }
 
         let networks = Network::from_wlan_available_network_list(raw_networks);
@@ -198,10 +248,35 @@ impl Wlan {
         Ok(networks)
     }
 
-    pub fn get_profile(&self, guid: &GUID, name: &str) -> win::Result<network::profile::Profile> {
+    /// ## Get saved WI-FI network
+    /// 
+    /// When you connect to some WI-FI, Windows saves
+    /// this network's details (such as its SSID, password, encryption type, etc.)
+    /// and allows to access them using the `WlanGetProfile` function.
+    /// 
+    /// However, the password is stored in encrypted form.
+    /// There are 2 ways to decrypt it:
+    /// - Export the profile in `cmd` with the `key=clear` flag.
+    /// Example: `netsh wlan export profile name="WiFiSSID" key=clear folder=c:\Wifi`
+    /// - Call `CryptUnprotectData` function with admin rights
+    /// and `winlogon.exe`'s token privelege.
+    /// More about it: `https://github.com/l4tr0d3ctism/WifikeyDecryptor`
+    ///
+    /// ## Parameters
+    /// - `guid`: A GUID of the interface from which
+    /// the profile will return.
+    /// - `name`: The name of a profile.
+    /// Matches the network SSID.
+    /// 
+    /// ## Returns
+    /// `Result` wraps 2 values:
+    /// - An error, returned by a `WlanGetProfile` function.
+    /// - A deserialized profile.
+    pub fn get_profile(&self, guid: &GUID, name: &str) -> win::NativeResult<network::profile::Profile> {
         let mut pwstr_profile = unsafe { std::mem::zeroed() };
-        let wides = widestring::U16CString::from_str(name).unwrap();
-        let name_pcwstr = windows::core::PCWSTR::from_raw(wides.as_ptr());
+
+        let name_u16cs = widestring::U16CString::from_str(name).unwrap();
+        let name_pcwstr = windows::core::PCWSTR::from_raw(name_u16cs.as_ptr());
 
         let result = unsafe {
             WiFi::WlanGetProfile(
@@ -216,7 +291,7 @@ impl Wlan {
         };
 
         if result != win::SUCCESS {
-            return Err(win::Error::from_u32(result).unwrap())
+            return Err(win::NativeError::from_u32(result).unwrap())
         }
 
         let string_profile = win::util::string::from_pwstr(&pwstr_profile).unwrap();
@@ -229,7 +304,7 @@ impl Wlan {
         Ok(profile)
     }
 
-    pub fn set_profile(&self, profile: network::profile::Profile) -> win::Result<()> {
+    pub fn set_profile(&self, profile: network::profile::Profile) -> win::NativeResult<()> {
         let profile_string = profile.genuine_serialize_to_string();
 
         unimplemented!()
