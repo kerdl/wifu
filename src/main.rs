@@ -37,6 +37,11 @@ async fn main() {
         let ifs = wlan.list_interfaces().unwrap();
         println!("ifs={:#?}", ifs);
 
+        if ifs.is_empty() {
+            println!("no wlan adapters available");
+            continue
+        }
+
         let iface = &ifs[0];
 
         let scan = wlan.scan(&iface.guid).await.unwrap();
@@ -45,14 +50,17 @@ async fn main() {
         println!("networks={:#?}", networks);
 
         let network = networks.iter().find(|n| n.ssid == "***REMOVED***");
-        if network.is_none() { panic!("no desired network available")}
+        if network.is_none() {
+            println!("no desired network available");
+            continue
+        }
         let network = network.unwrap();
 
         println!("network={:?}", network);
 
         let profile = wlan.get_profile(&iface.guid, &network.ssid);
         println!("profile={:?}", profile);
-        std::thread::park();
+        //std::thread::park();
     }
     
     

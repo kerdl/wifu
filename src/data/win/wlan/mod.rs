@@ -190,6 +190,10 @@ impl Wlan {
 
         let networks = Network::from_wlan_available_network_list(raw_networks);
 
+        unsafe {
+            WiFi::WlanFreeMemory(raw_networks as *const core::ffi::c_void)
+        }
+
         Ok(networks)
     }
 
