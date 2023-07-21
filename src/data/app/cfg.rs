@@ -1,5 +1,4 @@
-use crate::data::error::RwError;
-
+use super::error::RwError;
 use serde_derive::{Serialize, Deserialize};
 
 

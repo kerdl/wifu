@@ -23,12 +23,12 @@ lazy_static! {
     };
 }
 
-pub static CONFIG: OnceCell<data::cfg::Config> = OnceCell::new();
+pub static CONFIG: OnceCell<data::app::cfg::Config> = OnceCell::new();
 
 
 #[tokio::main]
 async fn main() {
-    data::init_fs().await;
+    data::app::init_fs().await;
     let config = CONFIG.get().unwrap();
 
     loop {
@@ -69,8 +69,12 @@ async fn main() {
         println!("network={:?}", network);
     
         let mut profile = wlan.get_profile(&iface.guid, &network.ssid);
-        if let Err(err) = profile.as_ref() {
-            println!("no profile for desired network, setting...");
+        if profile.is_err() {
+            match profile.as_ref().unwrap_err() {
+                win::NativeError::NotFound => println!("no profile for desired network, setting..."),
+                _ => { profile.unwrap(); }
+            }
+
             let new_profile = network.clone().to_profile(Some(Key::from_plain("***REMOVED***")));
             wlan.set_profile(&iface.guid, new_profile.clone()).unwrap();
             profile = Ok(new_profile)
