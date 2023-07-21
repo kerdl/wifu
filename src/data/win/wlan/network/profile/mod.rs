@@ -3,7 +3,7 @@ pub mod raw;
 use crate::data::win::wlan::Network;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Mac {
     pub randomization: bool,
 }
@@ -13,32 +13,36 @@ impl Default for Mac {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Connection {
     pub kind: raw::ConnectionType,
     pub mode: raw::ConnectionMode,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Key {
     pub kind: raw::KeyType,
     pub is_encrypted: bool,
     pub content: String,
 }
 impl Key {
-    pub fn from_plain(password: String) -> Self {
-        Self { kind: raw::KeyType::PassPhrase, is_encrypted: false, content: password }
+    pub fn from_plain(password: impl ToString) -> Self {
+        Self {
+            kind: raw::KeyType::PassPhrase,
+            is_encrypted: false,
+            content: password.to_string()
+        }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Security {
     pub auth: raw::Authentication,
     pub cipher: raw::Encryption,
     pub key: Option<Key>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Profile {
     pub name: String,
     pub ssid: String,

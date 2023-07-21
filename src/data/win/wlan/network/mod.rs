@@ -10,12 +10,12 @@ use security::Security;
 use windows::Win32::NetworkManagement::WiFi;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum UnconnectableReason {
     Unknown
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Network {
     pub profile: Option<String>,
     pub ssid: String,
@@ -27,6 +27,7 @@ pub struct Network {
     pub signal_quality: u32,
     pub security: Security,
 }
+// --------- Constructors ---------
 impl Network {
     pub fn from_wlan_available_network(network: WiFi::WLAN_AVAILABLE_NETWORK) -> Self {
         let profile = String::from_utf16(network.strProfileName.as_slice())
@@ -91,5 +92,11 @@ impl Network {
         }
 
         output
+    }
+}
+// --------- Converters ---------
+impl Network {
+    pub fn to_profile(self, key: Option<profile::Key>) -> Profile {
+        Profile::from_network(self, key)
     }
 }

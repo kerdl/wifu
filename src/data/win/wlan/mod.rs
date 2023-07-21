@@ -46,7 +46,7 @@ pub struct Wlan {
 }
 // --------- Constructors ---------
 impl Wlan {
-    pub async fn new(client_version: ClientVersion) -> win::NativeResult<Self> {
+    pub fn new(client_version: ClientVersion) -> win::NativeResult<Self> {
         let mut handle = unsafe { std::mem::zeroed() };
         let mut negotiated_version = unsafe { std::mem::zeroed() };
         let id = rand::thread_rng().gen::<u32>();
@@ -81,7 +81,7 @@ impl Wlan {
             negotiated_version: ClientVersion::from_u32(negotiated_version).unwrap(),
         };
 
-        this.register_acm_notifs().await?;
+        this.register_acm_notifs()?;
 
         Ok(this)
     }
@@ -101,10 +101,12 @@ impl Wlan {
         let sender = &*(sender_ptr as *const broadcast::Sender<AcmNotif>);
         let notification = AcmNotif::from_l2_notification_data(*notify).unwrap();
 
+        //println!("acm notification! {:?}", notification);
+
         sender.send(notification).unwrap();
     }
 
-    async fn register_acm_notifs(&self) -> win::NativeResult<()> {
+    fn register_acm_notifs(&self) -> win::NativeResult<()> {
         let result = unsafe {
             WiFi::WlanRegisterNotification(
                 self.handle,
@@ -183,7 +185,7 @@ impl Wlan {
     /// and `false` means that it failed in the process.
     /// One of the reasons could be unplugging USB WI-FI
     /// adapter during the scan.
-    pub async fn scan(&mut self, guid: &GUID) -> win::NativeResult<bool> {
+    pub async fn scan(&self, guid: &GUID) -> win::NativeResult<bool> {
         let result = unsafe {
             WiFi::WlanScan(self.handle, guid, None, None, None)
         };
@@ -273,7 +275,7 @@ impl Wlan {
     /// - An error, returned by a `WlanGetProfile` function.
     /// - A deserialized profile.
     pub fn get_profile(&self, guid: &GUID, name: &str) -> win::NativeResult<network::profile::Profile> {
-        let mut pwstr_profile = unsafe { std::mem::zeroed() };
+        let mut profile_pwstr = unsafe { std::mem::zeroed() };
 
         let name_u16cs = widestring::U16CString::from_str(name).unwrap();
         let name_pcwstr = windows::core::PCWSTR::from_raw(name_u16cs.as_ptr());
@@ -284,7 +286,7 @@ impl Wlan {
                 guid,
                 name_pcwstr,
                 None,
-                &mut pwstr_profile,
+                &mut profile_pwstr,
                 None,
                 None
             )
@@ -294,20 +296,108 @@ impl Wlan {
             return Err(win::NativeError::from_u32(result).unwrap())
         }
 
-        let string_profile = win::util::string::from_pwstr(&pwstr_profile).unwrap();
+        let string_profile = win::util::string::from_pwstr(&profile_pwstr).unwrap();
         let profile = network::profile::Profile::deserialize_str(&string_profile).unwrap();
 
         unsafe {
-            WiFi::WlanFreeMemory(pwstr_profile.as_ptr() as *const core::ffi::c_void)
+            WiFi::WlanFreeMemory(profile_pwstr.as_ptr() as *const core::ffi::c_void)
         };
 
         Ok(profile)
     }
 
-    pub fn set_profile(&self, profile: network::profile::Profile) -> win::NativeResult<()> {
+    pub fn set_profile(&self, guid: &GUID, profile: network::profile::Profile) -> win::NativeResult<()> {
+        let mut reason_code = 0;
         let profile_string = profile.genuine_serialize_to_string();
+        let profile_u16cs = widestring::U16CString::from_str(&profile_string).unwrap();
+        let profile_pcwstr = windows::core::PCWSTR::from_raw(profile_u16cs.as_ptr());
 
-        unimplemented!()
+        let result = unsafe {
+            WiFi::WlanSetProfile(
+                self.handle,
+                guid,
+                0,
+                profile_pcwstr,
+                None,
+                false,
+                None,
+                &mut reason_code
+            )
+        };
+
+        if result != win::SUCCESS {
+            return Err(win::NativeError::from_u32(result).unwrap())
+        }
+
+        if reason_code != 0 {
+            panic!("how to handle reason codes idk")
+        }
+
+        Ok(())
+    }
+
+    pub async fn connect(&self, guid: &GUID, profile: &str, bss: &network::Bss) -> win::NativeResult<bool> {
+        let profile_u16cs = widestring::U16CString::from_str(profile).unwrap();
+        let profile_pcwstr = windows::core::PCWSTR::from_raw(profile_u16cs.as_ptr());
+
+        let params = WiFi::WLAN_CONNECTION_PARAMETERS {
+            wlanConnectionMode: WiFi::wlan_connection_mode_profile,
+            strProfile: profile_pcwstr,
+            dot11BssType: bss.to_dot11_bss_type(),
+            ..Default::default()
+        };
+
+        let result = unsafe {
+            WiFi::WlanConnect(
+                self.handle,
+                guid,
+                &params,
+                None
+            )
+        };
+
+        if result != win::SUCCESS {
+            return Err(win::NativeError::from_u32(result).unwrap())
+        }
+
+        let mut acm_notify_receiver = {
+            self.session.acm_notify_receiver.resubscribe()
+        };
+
+        while let Ok(notif) = acm_notify_receiver.recv().await {
+            match notif.code {
+                AcmNotifCode::ConnectionStart => (),
+                AcmNotifCode::ConnectionComplete => return Ok(true),
+                AcmNotifCode::ConnectionAttemptFail => return Ok(false),
+                _ => println!("connect() code recv: {:?}", notif.code)
+            }
+        }
+
+        Ok(false)
+    }
+
+    pub async fn disconnect(&self, guid: &GUID) -> win::NativeResult<bool> {
+        let result = unsafe {
+            WiFi::WlanDisconnect(self.handle, guid, None)
+        };
+
+        if result != win::SUCCESS {
+            return Err(win::NativeError::from_u32(result).unwrap())
+        }
+
+        let mut acm_notify_receiver = {
+            self.session.acm_notify_receiver.resubscribe()
+        };
+
+        while let Ok(notif) = acm_notify_receiver.recv().await {
+            match notif.code {
+                AcmNotifCode::Disconnecting => (),
+                AcmNotifCode::Disconnected => return Ok(true),
+                _ => println!("disconnect() code recv: {:?}", notif.code)
+            }
+        }
+
+        Ok(false)
     }
 }
 impl Drop for Wlan {

@@ -3,7 +3,7 @@ use strum_macros::{EnumString, Display};
 use windows::Win32::NetworkManagement::WiFi;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Authentication {
     Open,
     SharedKey,
@@ -30,11 +30,12 @@ impl Authentication {
             WiFi::DOT11_AUTH_ALGO_RSNA => Self::Rsna,
             WiFi::DOT11_AUTH_ALGO_RSNA_PSK => Self::RsnaPsk,
             WiFi::DOT11_AUTH_ALGO_WPA3 => Self::Wpa3,
+            WiFi::DOT11_AUTH_ALGO_WPA3_SAE => Self::Wpa3Sae,
             WiFi::DOT11_AUTH_ALGO_OWE => Self::Owe,
             WiFi::DOT11_AUTH_ALGO_WPA3_ENT => Self::Wpa3Ent,
             WiFi::DOT11_AUTH_ALGO_IHV_START => Self::IhvStart,
             WiFi::DOT11_AUTH_ALGO_IHV_END => Self::IhvEnd,
-            _ => unreachable!()
+            _ => {println!("auth_algo unknown!! {:?}", auth_algo); unreachable!()}
         }
     }
 }

@@ -2,8 +2,8 @@ pub mod data;
 pub mod handlers;
 
 use data::win;
+use data::win::wlan::network::profile::Key;
 
-use std::net::{ToSocketAddrs, SocketAddr};
 use std::path::PathBuf;
 use std::time::Duration;
 use lazy_static::lazy_static;
@@ -32,7 +32,7 @@ async fn main() {
     let config = CONFIG.get().unwrap();
 
     loop {
-        let mut wlan = win::Wlan::new(win::wlan::ClientVersion::Second).await.unwrap();
+        let wlan = win::Wlan::new(win::wlan::ClientVersion::Second).unwrap();
         println!("wlan={:#?}", wlan);
         let ifs = wlan.list_interfaces().unwrap();
         println!("ifs={:#?}", ifs);
@@ -44,22 +44,48 @@ async fn main() {
 
         let iface = &ifs[0];
 
-        let scan = wlan.scan(&iface.guid).await.unwrap();
+        let scan = wlan.scan(&iface.guid).await;
+        if let Err(err) = scan {
+            println!("scan failed with error {:?}", err);
+            continue
+        }
+        let scan = scan.unwrap();
         println!("scan={:#?}", scan);
-        let networks = wlan.available_networks(&iface.guid).unwrap();
-        println!("networks={:#?}", networks);
 
+        let networks = wlan.available_networks(&iface.guid);
+        if let Err(err) = networks {
+            println!("network listing failed with error {:?}", err);
+            continue
+        }
+        let networks = networks.unwrap();
+        println!("networks={:#?}", networks);
+    
         let network = networks.iter().find(|n| n.ssid == "***REMOVED***");
         if network.is_none() {
             println!("no desired network available");
             continue
         }
         let network = network.unwrap();
-
         println!("network={:?}", network);
-
-        let profile = wlan.get_profile(&iface.guid, &network.ssid);
+    
+        let mut profile = wlan.get_profile(&iface.guid, &network.ssid);
+        if let Err(err) = profile.as_ref() {
+            println!("no profile for desired network, setting...");
+            let new_profile = network.clone().to_profile(Some(Key::from_plain("***REMOVED***")));
+            wlan.set_profile(&iface.guid, new_profile.clone()).unwrap();
+            profile = Ok(new_profile)
+        }
+        let profile = profile.unwrap();
         println!("profile={:?}", profile);
+    
+        println!("connecting...");
+        let connection = wlan.connect(&iface.guid, &profile.name, &network.bss).await;
+        println!("connection={:?}", connection);
+        
+        println!("disconnecting...");
+        let disconnection = wlan.disconnect(&iface.guid).await;
+        println!("disconnection={:?}", disconnection);
+
         //std::thread::park();
     }
     

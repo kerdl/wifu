@@ -13,7 +13,7 @@ pub const XMLNS_PROFILE_V1: &str = "http://www.microsoft.com/networking/WLAN/pro
 pub const XMLNS_PROFILE_V3: &str = "http://www.microsoft.com/networking/WLAN/profile/v3";
 
 
-#[derive(Debug, EnumString, Display, FromPrimitive)]
+#[derive(Debug, Clone, EnumString, Display, FromPrimitive)]
 pub enum Authentication {
     /// ## Network has no password
     #[strum(to_string = "open")]
@@ -44,7 +44,7 @@ impl Authentication {
     }
 }
 
-#[derive(Debug, EnumString, Display, FromPrimitive)]
+#[derive(Debug, Clone, EnumString, Display, FromPrimitive)]
 pub enum Encryption {
     #[strum(to_string = "none")]
     None,
@@ -66,7 +66,7 @@ impl Encryption {
     }
 }
 
-#[derive(Debug, EnumString, Display)]
+#[derive(Debug, Clone, EnumString, Display)]
 pub enum KeyType {
     #[strum(to_string = "networkKey")]
     NetworkKey,
@@ -74,7 +74,7 @@ pub enum KeyType {
     PassPhrase
 }
 
-#[derive(Debug, EnumString, Display)]
+#[derive(Debug, Clone, EnumString, Display)]
 pub enum ConnectionType {
     IBSS,
     ESS
@@ -97,7 +97,7 @@ impl ConnectionType {
     }
 }
 
-#[derive(Debug, EnumString, Display)]
+#[derive(Debug, Clone, EnumString, Display)]
 pub enum ConnectionMode {
     #[strum(to_string = "auto")]
     Auto,
@@ -111,7 +111,7 @@ impl Default for ConnectionMode {
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MacRandomization {
     #[serde(rename = "@xmlns")]
     pub xmlns: String,
@@ -128,7 +128,7 @@ impl Default for MacRandomization {
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SharedKey {
     #[serde(rename = "keyType")]
     #[serde_as(as = "DisplayFromStr")]
@@ -139,7 +139,7 @@ pub struct SharedKey {
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthEncryption {
     #[serde_as(as = "DisplayFromStr")]
     pub authentication: Authentication,
@@ -159,7 +159,7 @@ impl AuthEncryption {
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Security {
     #[serde(rename = "authEncryption")]
     pub auth_encryption: AuthEncryption,
@@ -169,13 +169,13 @@ pub struct Security {
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MSM {
     pub security: Security
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SSID {
     pub hex: String,
     pub name: String,
@@ -190,7 +190,7 @@ impl SSID {
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SSIDConfig {
     #[serde(rename = "SSID")]
     pub ssid: SSID
@@ -204,7 +204,7 @@ impl SSIDConfig {
 }
 
 #[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WLANProfile {
     #[serde(rename = "@xmlns")]
     pub xmlns: String,
@@ -287,7 +287,7 @@ impl WLANProfile {
                     shared_key: friendly.security.key.map(
                         |key| SharedKey {
                             key_type: key.kind,
-                            protected: false,
+                            protected: key.is_encrypted,
                             key_material: key.content
                         }
                     )

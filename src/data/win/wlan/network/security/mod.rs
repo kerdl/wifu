@@ -4,7 +4,7 @@ pub use auth::Authentication;
 pub use cipher::Encryption;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Security {
     pub enabled: bool,
     pub auth: Authentication,

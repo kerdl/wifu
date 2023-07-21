@@ -3,7 +3,7 @@ use num_traits::FromPrimitive;
 use windows::Win32::NetworkManagement::WiFi;
 
 
-#[derive(Debug, FromPrimitive)]
+#[derive(Debug, Clone, FromPrimitive)]
 pub enum Type {
     Any = 0,
     Fhss = 1,

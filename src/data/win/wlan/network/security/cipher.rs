@@ -3,7 +3,7 @@ use strum_macros::{EnumString, Display};
 use windows::Win32::NetworkManagement::WiFi;
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Encryption {
     None,
     Wep40,
