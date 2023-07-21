@@ -2,17 +2,17 @@ use super::error::RwError;
 use serde_derive::{Serialize, Deserialize};
 
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WiFiNetwork {
     pub ssid: String,
     pub password: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WiFis {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WiFi {
     pub networks: Vec<WiFiNetwork>,
 }
-impl Default for WiFis {
+impl Default for WiFi {
     fn default() -> Self {
         Self {
             networks: vec![],
@@ -20,7 +20,7 @@ impl Default for WiFis {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Interfaces {
     pub priority: Vec<String>,
 }
@@ -32,9 +32,21 @@ impl Default for Interfaces {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DomainsMode {
+    FirstIpFromEach,
+    AllIpsFromEach,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Domains {
+    pub list: Vec<String>,
+    pub mode: DomainsMode,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ping {
-    pub domains: Vec<String>,
+    pub domains: Domains,
     pub timeout_ms: u32,
     pub interval_ms: u64,
     pub max_errors: u32,
@@ -43,11 +55,14 @@ pub struct Ping {
 impl Default for Ping {
     fn default() -> Self {
         Self {
-            domains: vec![
-                "google.com".to_string(),
-                "amazon.com".to_string(),
-                "microsoft.com".to_string()
-            ],
+            domains: Domains {
+                list: vec![
+                    "google.com".to_string(),
+                    "amazon.com".to_string(),
+                    "microsoft.com".to_string()
+                ],
+                mode: DomainsMode::FirstIpFromEach
+            },
             timeout_ms: 2000,
             interval_ms: 500,
             max_errors: 3
@@ -56,11 +71,11 @@ impl Default for Ping {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub ping: Ping,
     pub interfaces: Interfaces,
-    pub wifis: WiFis
+    pub wifi: WiFi
 }
 impl Config {
     pub async fn load() -> Result<Self, RwError> {
@@ -94,7 +109,7 @@ impl Default for Config {
         Self {
             ping: Ping::default(),
             interfaces: Interfaces::default(),
-            wifis: WiFis::default()
+            wifi: WiFi::default()
         }
     }
 }

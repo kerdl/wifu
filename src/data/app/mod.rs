@@ -1,5 +1,10 @@
+pub mod interface;
+pub mod network;
+pub mod pinger;
+pub mod util;
 pub mod cfg;
 pub mod error;
+pub use pinger::{Pinger, PingErr, PingOk};
 pub use error::{Result, Error};
 
 

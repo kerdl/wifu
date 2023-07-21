@@ -4,7 +4,7 @@ use windows::core::GUID;
 use windows::Win32::NetworkManagement::WiFi;
 
 
-#[derive(Debug, FromPrimitive, ToPrimitive)]
+#[derive(Debug, Clone, FromPrimitive, ToPrimitive)]
 pub enum State {
     NotReady = 0,
     Connected = 1,
@@ -21,7 +21,7 @@ impl State {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Interface {
     pub guid: GUID,
     pub description: String,

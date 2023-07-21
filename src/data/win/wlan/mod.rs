@@ -2,19 +2,19 @@ pub mod acm;
 pub mod interface;
 pub mod network;
 pub mod notification;
+pub use interface::Interface;
+pub use network::Network;
 
 use crate::data::win;
 use crate::data::win::wlan::acm::notification::Code as AcmNotifCode;
 use crate::data::win::wlan::acm::notification::Notification as AcmNotif;
-use interface::Interface;
-use network::Network;
-use rand::Rng;
 
 use std::collections::HashMap;
 use tokio::sync::broadcast;
 use once_cell::sync::Lazy;
 use num_traits::{FromPrimitive, ToPrimitive};
 use num_derive::{FromPrimitive, ToPrimitive};
+use rand::Rng;
 use windows::Win32::NetworkManagement::WiFi;
 use windows::Win32::Foundation::HANDLE;
 use windows::core::GUID;
@@ -398,6 +398,14 @@ impl Wlan {
         }
 
         Ok(false)
+    }
+
+    pub async fn acm_recv(&self) -> AcmNotif {
+        let mut acm_notify_receiver = {
+            self.session.acm_notify_receiver.resubscribe()
+        };
+
+        acm_notify_receiver.recv().await.unwrap()
     }
 }
 impl Drop for Wlan {
