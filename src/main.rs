@@ -3,13 +3,13 @@ pub use data::app;
 pub use data::win;
 
 use app::interface;
+use data::app::network;
+use data::app::pinger;
 use win::wlan::network::profile::Key;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
-use tokio::sync::broadcast;
 use lazy_static::lazy_static;
 use once_cell::sync::OnceCell;
 
@@ -30,33 +30,28 @@ pub static WLAN: OnceCell<Arc<win::Wlan>> = OnceCell::new();
 #[tokio::main]
 async fn main() {
     app::init_fs().await;
-    let (ifaces_update_post_sender, ifaces_update_post_recv) = broadcast::channel(64);
-    WLAN.set(Arc::new(win::Wlan::new(win::wlan::ClientVersion::Second).unwrap())).unwrap();
-    interface::LIST.set(Arc::new(RwLock::new(WLAN.get().unwrap().list_interfaces().unwrap()))).unwrap();
-    interface::CHOSEN_AS_GUID.set(Arc::new(RwLock::new(None))).unwrap();
-    interface::UPDATE_SENDER.set(ifaces_update_post_sender).unwrap();
-    interface::UPDATE_RECV.set(ifaces_update_post_recv).unwrap();
-
-    app::interface::spawn_acm_event_loop();
-    app::interface::spawn_autopilot();
 
     let config = CONFIG.get().unwrap();
+    if let Err(reasons) = config.is_valid() {
+        println!("x CONFIG is invalid due to the following reasons: {:?}", reasons);
+        return;
+    }
+    let pinger = &pinger::PINGER;
+
+    WLAN.set(Arc::new(win::Wlan::new(win::wlan::ClientVersion::Second).unwrap())).unwrap();
     let wlan = WLAN.get().unwrap();
-    let interfaces = interface::LIST.get().unwrap();
+
+    interface::init_globals().await;
+    network::init_globals().await;
+
+    interface::spawn_all_handles().await;
+
+    let interfaces = interface::LIST.as_ref();
+    let chosen_interface = interface::CHOSEN_AS_GUID.as_ref();
     let interfaces_update_sender = interface::UPDATE_SENDER.get().unwrap();
     let interfaces_update_recv = interface::UPDATE_RECV.get().unwrap();
 
-    let pinger = app::Pinger::from_config(config.ping.clone());
-
-    if interfaces.read().await.is_empty() {
-        println!("no wireless interfaces, connect one");
-        interface::wait_for_arrival().await;
-    }
-
-    if interface::CHOSEN_AS_GUID.get().unwrap().read().await.is_none() {
-        interface::choose_global(None).await;
-    }
-
+    app::run().await;
 
     std::thread::park();
 

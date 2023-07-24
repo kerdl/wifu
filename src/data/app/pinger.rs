@@ -1,6 +1,15 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use once_cell::sync::Lazy;
 use winping::AsyncPinger;
 
+use super::cfg;
+
+
+pub static PINGER: Lazy<Arc<RwLock<Pinger>>> = Lazy::new(
+    || Arc::new(RwLock::new(Pinger::from_config(crate::CONFIG.get().unwrap().ping.clone())))
+);
 
 pub struct PingOk {
     pub buf: winping::Buffer,
@@ -20,10 +29,21 @@ pub struct Pinger {
 }
 impl Pinger {
     pub fn from_config(config: super::cfg::Ping) -> Self {
-        let mut ips = vec![];
-        let pinger = AsyncPinger::new();
+        let ips = Self::gather_ips(&config.domains);
+        let mut pinger = AsyncPinger::new();
+        pinger.set_timeout(config.timeout_ms);
 
-        for domain in config.domains.list.iter() {
+        Self { pinger, config, ips }
+    }
+
+    pub fn has_no_ips(&self) -> bool {
+        self.ips.is_empty()
+    }
+
+    fn gather_ips(domains: &cfg::Domains) -> Vec<SocketAddr> {
+        let mut ips = vec![];
+
+        for domain in domains.list.iter() {
             let domain_ips = super::util::domain::http_to_ips(domain);
 
             if domain_ips.is_err() || domain_ips.as_ref().unwrap().as_slice().is_empty() {
@@ -31,7 +51,7 @@ impl Pinger {
             }
             let domain_ips = domain_ips.unwrap();
 
-            match config.domains.mode {
+            match domains.mode {
                 super::cfg::DomainsMode::FirstIpFromEach => {
                     ips.push(domain_ips.as_slice()[0])
                 },
@@ -41,7 +61,11 @@ impl Pinger {
             }
         }
 
-        Self { pinger, config, ips }
+        ips
+    }
+
+    pub fn update_ips(&mut self) {
+        self.ips = Self::gather_ips(&self.config.domains)
     }
 
     async fn ping_ip_once(&self, addr: &SocketAddr, buf: winping::Buffer) -> Result<PingOk, PingErr> {
@@ -78,8 +102,16 @@ impl Pinger {
             
             'addr: loop {
                 match self.ping_ip_once(addr, buf).await {
-                    Ok(result) => { errors = 0; buf = result.buf },
-                    Err(err) => { errors += 1; buf = err.buf; break 'addr; }
+                    Ok(result) => {
+                        errors = 0;
+                        buf = result.buf;
+                        tokio::time::sleep(Duration::from_millis(self.config.interval_ms)).await;
+                    },
+                    Err(err) => {
+                        errors += 1;
+                        buf = err.buf;
+                        break 'addr;
+                    },
                 }
             }
 

@@ -1,26 +1,75 @@
+use std::fmt::Display;
+
 use super::error::RwError;
 use serde_derive::{Serialize, Deserialize};
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WiFiNetwork {
     pub ssid: String,
     pub password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WiFi {
-    pub networks: Vec<WiFiNetwork>,
+#[serde(rename_all = "camelCase")]
+pub struct WiFiScan {
+    pub interval_ms: u64,
 }
-impl Default for WiFi {
+impl Default for WiFiScan {
     fn default() -> Self {
         Self {
-            networks: vec![],
+            interval_ms: 30000
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WiFiPriority {
+    List,
+    SignalStrength
+}
+
+#[derive(Debug, Clone)]
+pub enum WiFiInvalidReason {
+    NoNetworks
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WiFi {
+    pub networks: Vec<WiFiNetwork>,
+    pub priority: WiFiPriority,
+    pub scan: WiFiScan,
+}
+impl WiFi {
+    pub fn is_valid(&self) -> Result<(), Vec<WiFiInvalidReason>> {
+        let mut reasons = vec![];
+
+        if self.networks.is_empty() {
+            reasons.push(WiFiInvalidReason::NoNetworks)
+        }
+
+        if reasons.is_empty() {
+            Ok(())
+        } else {
+            Err(reasons)
+        }
+    }
+}
+impl Default for WiFi {
+    fn default() -> Self {
+        Self {
+            networks: vec![],
+            priority: WiFiPriority::SignalStrength,
+            scan: WiFiScan::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Interfaces {
     pub priority: Vec<String>,
 }
@@ -33,24 +82,26 @@ impl Default for Interfaces {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum DomainsMode {
     FirstIpFromEach,
     AllIpsFromEach,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Domains {
     pub list: Vec<String>,
     pub mode: DomainsMode,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Ping {
     pub domains: Domains,
     pub timeout_ms: u32,
     pub interval_ms: u64,
     pub max_errors: u32,
-    //pub tcp_streams: Vec<Ipv4Addr>
 }
 impl Default for Ping {
     fn default() -> Self {
@@ -63,15 +114,25 @@ impl Default for Ping {
                 ],
                 mode: DomainsMode::FirstIpFromEach
             },
-            timeout_ms: 2000,
-            interval_ms: 500,
+            timeout_ms: 1500,
+            interval_ms: 1000,
             max_errors: 3
-            //tcp_streams: vec![]
         }
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum ConfigInvalidReason {
+    WiFi(Vec<WiFiInvalidReason>)
+}
+
+#[derive(Debug, Clone)]
+pub struct ConfigInvalidReasons {
+    pub reasons: Vec<ConfigInvalidReason>
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Config {
     pub ping: Ping,
     pub interfaces: Interfaces,
@@ -102,6 +163,20 @@ impl Config {
         let this = Self::default();
         this.save().await?;
         Ok(this)
+    }
+
+    pub fn is_valid(&self) -> Result<(), ConfigInvalidReasons> {
+        let mut reasons = vec![];
+
+        if let Err(wifi_reasons) = self.wifi.is_valid() {
+            reasons.push(ConfigInvalidReason::WiFi(wifi_reasons))
+        }
+
+        if reasons.is_empty() {
+            Ok(())
+        } else {
+            Err(ConfigInvalidReasons { reasons })
+        }
     }
 }
 impl Default for Config {
