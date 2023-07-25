@@ -14,7 +14,7 @@ pub fn choose<'a>(current: Option<&'a str>, priority: &'a [String]) -> Result<&'
     }
     let current = current.unwrap();
 
-    for idx in 0..priority.len() - 1 {
+    for idx in 0..priority.len() {
         let item = priority.get(idx).unwrap();
         let next_item = if let Some(next) = priority.get(idx+1) {
             next

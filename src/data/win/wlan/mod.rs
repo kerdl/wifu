@@ -13,6 +13,7 @@ use crate::data::win::wlan::acm::notification::Code as AcmNotifCode;
 use crate::data::win::wlan::acm::notification::Notification as AcmNotif;
 
 use std::collections::HashMap;
+use std::time::Duration;
 use tokio::sync::broadcast;
 use once_cell::sync::Lazy;
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -419,16 +420,19 @@ impl Wlan {
             return Err(win::NativeError::from_u32(result).unwrap())
         }
 
-        let mut acm_notify_receiver = {
-            self.session.acm_notify_receiver.resubscribe()
-        };
+        loop {
+            let timeout = tokio::time::timeout(
+                Duration::from_secs(5),
+                async move {self.session.acm_notify_receiver.resubscribe().recv().await}
+            ).await;
+            if timeout.is_err() { break }
+            let notif = timeout.unwrap().unwrap();
 
-        while let Ok(notif) = acm_notify_receiver.recv().await {
             match notif.code {
                 AcmNotifCode::ConnectionStart => (),
                 AcmNotifCode::ConnectionComplete => return Ok(true),
                 AcmNotifCode::ConnectionAttemptFail => return Ok(false),
-                _ => ()
+                _ => println!("Wlan::connect() recv {:?}", notif.code)
             }
         }
 

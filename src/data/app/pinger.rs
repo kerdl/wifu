@@ -119,7 +119,5 @@ impl Pinger {
                 break 'addrs;
             }
         }
-
-        println!("trigger wifi switch")
     }
 }

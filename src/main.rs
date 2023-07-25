@@ -1,4 +1,4 @@
-pub mod data;
+mod data;
 pub use data::app;
 pub use data::win;
 
@@ -44,7 +44,8 @@ async fn main() {
     interface::init_globals().await;
     network::init_globals().await;
 
-    interface::spawn_all_handles().await;
+    interface::spawn_event_handles().await;
+    network::spawn_event_handles().await;
 
     let interfaces = interface::LIST.as_ref();
     let chosen_interface = interface::CHOSEN_AS_GUID.as_ref();
