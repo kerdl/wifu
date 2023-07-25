@@ -217,9 +217,8 @@ pub async fn choose(current: Option<&str>) -> Option<String> {
 pub async fn choose_global(send_alive: bool) {
     let wlan = crate::WLAN.get().unwrap();
     let config = crate::CONFIG.get().unwrap();
-    let chosen = CHOSEN_AS_SSID.read().await;
-    let current = chosen.as_ref().map(|string| string.as_str());
     let mut old_chosen = CHOSEN_AS_SSID.write().await;
+    let current = old_chosen.as_ref().map(|string| string.as_str());
     let new_chosen = choose(current).await;
 
     let old_and_new_are_some = old_chosen.is_some() && new_chosen.is_some();
@@ -252,7 +251,7 @@ pub async fn choose_global(send_alive: bool) {
             wlan.set_profile(chosen_interface, chosen_network_profile.clone()).unwrap();
         }
 
-        wlan.connect(chosen_interface, &chosen_network_profile.name, &chosen_network_clone.bss).await;
+        wlan.connect(chosen_interface, &chosen_network_profile.name, &chosen_network_clone.bss).await.unwrap();
 
         if send_alive && *super::IS_DEAD.read().await {
             super::alive(false).await;

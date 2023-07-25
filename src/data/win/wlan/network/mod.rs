@@ -10,6 +10,9 @@ use security::Security;
 use windows::Win32::NetworkManagement::WiFi;
 
 
+pub struct SafeConnectionParameters(pub WiFi::WLAN_CONNECTION_PARAMETERS);
+unsafe impl Send for SafeConnectionParameters {}
+
 #[derive(Debug, Clone)]
 pub enum UnconnectableReason {
     Unknown

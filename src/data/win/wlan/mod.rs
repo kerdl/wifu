@@ -8,6 +8,7 @@ use widestring::U16CStr;
 use windows::core::PCWSTR;
 
 use crate::data::win;
+use crate::data::win::SafePCWSTR;
 use crate::data::win::wlan::acm::notification::Code as AcmNotifCode;
 use crate::data::win::wlan::acm::notification::Notification as AcmNotif;
 
@@ -384,22 +385,39 @@ impl Wlan {
         Ok(())
     }
 
-    fn wlan_connection_params(profile_pcwstr: PCWSTR, bss: &network::Bss) -> WiFi::WLAN_CONNECTION_PARAMETERS {
-        WiFi::WLAN_CONNECTION_PARAMETERS {
+    fn wlan_connection_params_safe(profile_pcwstr: SafePCWSTR, bss: &network::Bss) -> network::SafeConnectionParameters {
+        let params = WiFi::WLAN_CONNECTION_PARAMETERS {
             wlanConnectionMode: WiFi::wlan_connection_mode_profile,
-            strProfile: profile_pcwstr,
+            strProfile: profile_pcwstr.0,
             dot11BssType: bss.to_dot11_bss_type(),
             ..Default::default()
+        };
+        
+        network::SafeConnectionParameters(params)
+    }
+
+    fn connect_safe(&self, guid: &GUID, params: network::SafeConnectionParameters) -> u32 {
+        unsafe {
+            WiFi::WlanConnect(
+                self.handle,
+                guid,
+                &params.0,
+                None
+            )
         }
     }
 
     pub async fn connect(&self, guid: &GUID, profile: &str, bss: &network::Bss) -> win::NativeResult<bool> {
         let profile_u16cs = widestring::U16CString::from_str(profile).unwrap();
-        let profile_pcwstr = super::util::from_u16cstring(profile_u16cs);
+        let profile_pcwstr = super::util::from_u16cstring_safe(&profile_u16cs);
 
-        let params = Self::wlan_connection_params(profile_pcwstr, bss);
+        let params = Self::wlan_connection_params_safe(profile_pcwstr, bss);
+        
+        let result = self.connect_safe(guid, params);
 
-
+        if result != win::SUCCESS {
+            return Err(win::NativeError::from_u32(result).unwrap())
+        }
 
         let mut acm_notify_receiver = {
             self.session.acm_notify_receiver.resubscribe()
