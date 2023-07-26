@@ -18,3 +18,10 @@ pub static LIST: Lazy<Arc<RwLock<list::Operator>>> = Lazy::new(
 pub static CHOSEN: Lazy<Arc<RwLock<chosen::Operator>>> = Lazy::new(
     || Arc::new(RwLock::new(chosen::Operator::default()))
 );
+
+
+pub async fn init() {
+    event::init();
+
+    *IS_INITIALIZED.write().await = true;
+}

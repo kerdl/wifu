@@ -1,7 +1,7 @@
 use num_derive::{FromPrimitive, ToPrimitive};
 
 
-#[derive(Debug, FromPrimitive, ToPrimitive)]
+#[derive(Debug, Clone, FromPrimitive, ToPrimitive)]
 pub enum NativeError {
     AccessDenied = 5,
     NotEnoughMemory = 8,

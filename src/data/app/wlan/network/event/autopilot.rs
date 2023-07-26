@@ -1,7 +1,7 @@
 use crate::app;
 use crate::app::wlan::event;
 use crate::app::wlan::interface;
-use crate::app::wlan::network::{LIST, CHOSEN};
+use crate::app::wlan::network::{LIST, CHOSEN, event::pinger};
 use crate::win::wlan::acm::notification::Code as AcmNotifCode;
 
 use std::sync::Arc;
@@ -27,12 +27,17 @@ pub async fn event_loop() {
 
         match notif.code {
             AcmNotifCode::ScanListRefresh => {
-                let dead_because_no_network = app::STATE.read().await.dead_because_no_network();
+                let app_state = app::STATE.read().await;
+
+                let dead_because_no_network = {
+                    app_state.is_dead()
+                    && app_state.get_dead_reason().unwrap().is_no_network()
+                };
                 let cfg_networks_available = LIST.read().await.cfg_networks_available();
 
                 if dead_because_no_network && cfg_networks_available {
                     CHOSEN.write().await.choose().await;
-                    //spawn_pinger_global().await;
+                    pinger::spawn_event_loop().await;
                 }
             },
             _ => ()

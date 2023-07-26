@@ -37,7 +37,7 @@ pub async fn event_loop() {
             AcmNotifCode::ScanComplete => {},
             AcmNotifCode::ScanFail => {},
             AcmNotifCode::ScanListRefresh => {
-                LIST.write().await.update().await;
+                LIST.write().await.update().await.unwrap();
                 println!("{:?}", LIST.read().await.as_ssids())
             }
             AcmNotifCode::ConnectionStart => {},

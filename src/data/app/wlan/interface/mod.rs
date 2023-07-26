@@ -4,6 +4,8 @@ pub mod list;
 pub mod chosen;
 pub use error::Error;
 
+use crate::app;
+
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
@@ -23,4 +25,15 @@ pub static CHOSEN: Lazy<Arc<RwLock<chosen::Operator>>> = Lazy::new(
 pub async fn init() {
     event::init();
     LIST.write().await.update_warned().await.unwrap();
+
+    *IS_INITIALIZED.write().await = true;
+}
+
+pub async fn start() {
+    if !*IS_INITIALIZED.read().await {
+        init().await;
+    }
+
+    event::acm::spawn_event_loop().await;
+    event::autopilot::spawn_event_loop().await;
 }

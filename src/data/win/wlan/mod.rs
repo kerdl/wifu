@@ -5,7 +5,6 @@ pub mod notification;
 pub use interface::Interface;
 pub use network::Network;
 use widestring::U16CStr;
-use windows::core::PCWSTR;
 
 use crate::data::win;
 use crate::data::win::SafePCWSTR;
@@ -24,7 +23,9 @@ use windows::Win32::Foundation::HANDLE;
 use windows::core::GUID;
 
 
-static mut ACM_NOTIFY_SENDERS: Lazy<HashMap<u32, broadcast::Sender<AcmNotif>>> = Lazy::new(|| HashMap::new());
+static mut ACM_NOTIFY_SENDERS: Lazy<HashMap<u32, broadcast::Sender<AcmNotif>>> = Lazy::new(
+    || HashMap::new()
+);
 
 
 #[derive(Debug)]

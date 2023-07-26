@@ -3,8 +3,6 @@ use crate::app::wlan::network::UpdateError;
 use crate::app::wlan::interface;
 use crate::win::wlan::Network;
 
-use std::collections::HashMap;
-
 
 pub struct Operator {
     list: Vec<Network>

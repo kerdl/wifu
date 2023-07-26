@@ -23,8 +23,11 @@ pub async fn event_loop() {
 
         match notif.code {
             AcmNotifCode::InterfaceArrival => {
-                let mut chosen = interface::CHOSEN.write().await;
-                chosen.choose();
+                let chosen_something = interface::CHOSEN.write().await.choose().await.is_some();
+
+                if chosen_something && app::STATE.read().await.is_dead() {
+                    app::STATE.write().await.alive().unwrap();
+                }
             },
             AcmNotifCode::InterfaceRemoval => {
                 network::LIST.write().await.clear();
@@ -32,16 +35,24 @@ pub async fn event_loop() {
                 let list = interface::LIST.read().await;
                 let chosen = interface::CHOSEN.read().await;
 
-                if chosen.is_guid_chosen(&notif.interface.guid) && list.is_empty() {
+                let that_was_the_only_interface = {
+                    chosen.is_guid_chosen(&notif.interface.guid) && list.is_empty()
+                };
+                let have_other_interfaces = {
+                    !list.is_empty()
+                };
+
+                if that_was_the_only_interface {
                     std::mem::drop(list);
                     std::mem::drop(chosen);
                     interface::CHOSEN.write().await.unchoose().await.unwrap();
-                } else if !list.is_empty() {
+                    app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap();
+                } else if have_other_interfaces {
                     std::mem::drop(list);
                     std::mem::drop(chosen);
-                    interface::CHOSEN.write().await.choose().await.unwrap();
+                    interface::CHOSEN.write().await.choose().await;
                 } else {
-                    app::dead(app::DeadReason::NoInterface).await;
+                    app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap();
                 }
             },
             _ => ()

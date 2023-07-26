@@ -1,20 +1,28 @@
 use crate::app::interface::LIST;
-use crate::app::util::priority;
 use crate::win::{self, guid};
 
 use windows::core::GUID;
 
 
 pub struct Operator {
-    chosen: Option<GUID>
+    chosen: Option<GUID>,
+    name: Option<String>
 }
 impl Operator {
     pub fn get(&self) -> Option<&GUID> {
         self.chosen.as_ref()
     }
 
-    fn set(&mut self, guid: GUID) {
-        self.chosen = Some(guid)
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(|s| s.as_str())
+    }
+
+    fn set_guid(&mut self, guid: GUID) {
+        self.chosen = Some(guid);
+    }
+
+    fn set_name(&mut self, name: String) {
+        self.name = Some(name)
     }
 
     pub fn as_string(&self) -> Option<String> {
@@ -41,22 +49,27 @@ impl Operator {
 
     pub async fn choose(&mut self) -> Option<&GUID> {
         let list = LIST.read().await;
-        let config = crate::CONFIG.get().unwrap();
+        let priority_sorted = list.sorted_priority_string_guids();
 
-        let list_as_guid_string = list.as_guid_strings();
-        let self_as_string = self.as_string();
-        let self_as_str = self_as_string.as_ref().map(|s| s.as_str());
+        if priority_sorted.is_empty() {
+            return None
+        }
 
-        let prioritized = if config.interfaces.priority.is_empty() {
-            priority::choose(self_as_str, &list_as_guid_string).unwrap()
-        } else {
-            priority::choose(self_as_str, &config.interfaces.priority).unwrap()
-        };
-
-        let interface = list.get_by_str_guid(prioritized);
+        let interface = list.get_by_str_guid(priority_sorted.get(0).unwrap());
 
         if let Some(iface) = interface {
-            self.set(iface.guid);
+            let is_same = self.chosen.as_ref().map(|guid| guid == &iface.guid).unwrap_or(false);
+            if is_same {
+                return self.get()
+            }
+
+            self.set_guid(iface.guid);
+            self.set_name(iface.description);
+
+            let name = list.get_name_by_guid(&iface.guid).unwrap();
+            let guid_string = guid::to_string(&iface.guid);
+            println!("o INTERFACE: CHOSE {} (GUID: {})", name, guid_string);
+
             self.get()
         } else {
             None
@@ -68,6 +81,9 @@ impl Operator {
             return Err(())
         }
 
+        let guid_string = self.as_string().unwrap();
+        println!("x INTERFACE: UNCHOSE {} (GUID: {})", self.name().unwrap(), guid_string);
+
         self.chosen = None;
 
         Ok(())
@@ -75,6 +91,6 @@ impl Operator {
 }
 impl Default for Operator {
     fn default() -> Self {
-        Self { chosen: None }
+        Self { chosen: None, name: None }
     }
 }

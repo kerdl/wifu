@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use super::error::RwError;
 use serde_derive::{Serialize, Deserialize};
 
