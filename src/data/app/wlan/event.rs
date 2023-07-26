@@ -1,7 +1,19 @@
 pub mod looping {
+    macro_rules! works {
+        (async fn $name:ident($handle:path)) => {
+            pub async fn $name() -> bool {
+                let handle = $handle.read().await;
+                handle.as_ref().map(|h| !h.is_finished()).unwrap_or(false)
+            }
+        };
+    }
+
     macro_rules! spawner {
-        (async fn $name:ident($handle:path, $function:path)) => {
+        (async fn $name:ident($handle:path, $function:path, $works_fn:path)) => {
             pub async fn $name() {
+                if $works_fn().await {
+                    panic!("{}(): can't spawn more that 1", stringify!($name))
+                }
                 let mut handle = $handle.write().await;
                 *handle = Some(tokio::spawn(async move { $function().await }));
             }
@@ -23,6 +35,7 @@ pub mod looping {
         };
     }
     
+    pub(crate) use works;
     pub(crate) use spawner;
     pub(crate) use closer;
 }

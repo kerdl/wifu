@@ -36,12 +36,18 @@ impl Operator {
     
             v.push((net.clone(), corresponding.clone()));
         }
-    
+
         v
     }
 
     pub fn cfg_networks_available(&self) -> bool {
         !self.map_with_config().is_empty()
+    }
+
+    pub fn accessable_ssids(&self) -> Vec<String> {
+        self.map_with_config().iter().map(
+            |(cfg_net, _live_net)| cfg_net.ssid.clone()
+        ).collect::<Vec<String>>()
     }
 
     pub fn clear(&mut self) {

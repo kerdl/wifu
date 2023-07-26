@@ -55,6 +55,14 @@ impl WiFi {
             Err(reasons)
         }
     }
+
+    pub fn network_ssids_str(&self) -> Vec<&str> {
+        self.networks.iter().map(|net| net.ssid.as_str()).collect::<Vec<&str>>()
+    }
+
+    pub fn network_ssids_string(&self) -> Vec<String> {
+        self.networks.iter().map(|net| net.ssid.clone()).collect::<Vec<String>>()
+    }
 }
 impl Default for WiFi {
     fn default() -> Self {

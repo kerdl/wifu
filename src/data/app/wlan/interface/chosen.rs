@@ -1,5 +1,7 @@
 use crate::app::interface::LIST;
-use crate::win::{self, guid};
+use crate::win;
+use crate::win::guid;
+use crate::win::wlan::network::{Profile, Bss};
 
 use windows::core::GUID;
 
@@ -37,11 +39,36 @@ impl Operator {
         self.chosen.map(|chosen| &chosen == guid).unwrap_or(false)
     }
 
+    pub async fn get_profile(&self, name: &str) -> win::NativeResult<Profile> {
+        let wlan = crate::WLAN.get().unwrap();
+        wlan.get_profile(self.get().unwrap(), name)
+    }
+
+    pub async fn set_profile(&self, profile: Profile) -> win::NativeResult<()> {
+        let wlan = crate::WLAN.get().unwrap();
+        wlan.set_profile(self.get().unwrap(), profile)
+    }
+
+    pub fn profile_exists(&self, name: &str) -> bool {
+        let wlan = crate::WLAN.get().unwrap();
+        wlan.profile_exists(self.get().unwrap(), name)
+    }
+
     pub async fn scan(&self) -> win::NativeResult<bool> {
         let wlan = crate::WLAN.get().unwrap();
 
         if let Some(chosen) = &self.chosen {
             wlan.scan(chosen).await
+        } else {
+            Err(win::NativeError::NotFound)
+        }
+    }
+
+    pub async fn connect(&self, profile: &str, bss: &Bss) -> win::NativeResult<bool> {
+        let wlan = crate::WLAN.get().unwrap();
+
+        if let Some(chosen) = &self.chosen {
+            wlan.connect(chosen, profile, bss).await
         } else {
             Err(win::NativeError::NotFound)
         }
@@ -60,7 +87,7 @@ impl Operator {
         if let Some(iface) = interface {
             let is_same = self.chosen.as_ref().map(|guid| guid == &iface.guid).unwrap_or(false);
             if is_same {
-                return self.get()
+                return None
             }
 
             self.set_guid(iface.guid);

@@ -62,12 +62,23 @@ pub async fn event_loop() {
                     continue;
                 }
             },
-            _ => continue
+            _ => {
+                let is_unknown = !LIST.read().await.contains_guid(&notif.guid);
+
+                if is_unknown {
+                    continue
+                };
+
+                notif_with_interface = {
+                    NotificationWithInterface::from_notification_global(notif.clone()).await
+                };
+            }
         }
 
         SENDER.get().unwrap().send(notif_with_interface).unwrap();
     }
 }
 
-event::looping::spawner!(async fn spawn_event_loop(HANDLE, event_loop));
+event::looping::works!(async fn works(HANDLE));
+event::looping::spawner!(async fn spawn_event_loop(HANDLE, event_loop, works));
 event::looping::closer!(async fn close_event_loop(HANDLE));

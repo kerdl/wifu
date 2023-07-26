@@ -36,4 +36,8 @@ pub async fn start() {
 
     event::acm::spawn_event_loop().await;
     event::autopilot::spawn_event_loop().await;
+
+    if CHOSEN.write().await.choose().await.is_some() {
+        CHOSEN.read().await.scan().await.unwrap();
+    }
 }

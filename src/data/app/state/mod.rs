@@ -75,8 +75,10 @@ impl Operator {
 
     pub async fn choose(&mut self) -> &State {
         if interface::LIST.read().await.is_empty() {
+            println!("app state operator calls dead");
             self.dead(DeadReason::NoInterface).unwrap();
         } else if !network::LIST.read().await.cfg_networks_available() {
+            println!("app state operator calls dead");
             self.dead(DeadReason::NoNetwork).unwrap();
         } else if !self.is_alive() {
             self.alive().unwrap();

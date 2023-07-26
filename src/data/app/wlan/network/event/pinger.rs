@@ -36,5 +36,6 @@ pub async fn event_loop() {
     }
 }
 
-event::looping::spawner!(async fn spawn_event_loop(HANDLE, event_loop));
+event::looping::works!(async fn works(HANDLE));
+event::looping::spawner!(async fn spawn_event_loop(HANDLE, event_loop, works));
 event::looping::closer!(async fn close_event_loop(HANDLE));

@@ -23,10 +23,14 @@ pub async fn event_loop() {
 
         match notif.code {
             AcmNotifCode::InterfaceArrival => {
-                let chosen_something = interface::CHOSEN.write().await.choose().await.is_some();
+                let chosen_something_else = interface::CHOSEN.write().await.choose().await.is_some();
 
-                if chosen_something && app::STATE.read().await.is_dead() {
-                    app::STATE.write().await.alive().unwrap();
+                if chosen_something_else {
+                    if app::STATE.read().await.is_dead() {
+                        app::STATE.write().await.alive().unwrap();
+                    }
+
+                    network::restart().await
                 }
             },
             AcmNotifCode::InterfaceRemoval => {
@@ -46,12 +50,24 @@ pub async fn event_loop() {
                     std::mem::drop(list);
                     std::mem::drop(chosen);
                     interface::CHOSEN.write().await.unchoose().await.unwrap();
+                    network::end().await;
+                    println!("interface autopilot calls dead");
                     app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap();
                 } else if have_other_interfaces {
                     std::mem::drop(list);
                     std::mem::drop(chosen);
-                    interface::CHOSEN.write().await.choose().await;
+
+                    let chosen_something_else = interface::CHOSEN.write().await.choose().await.is_some();
+
+                    if chosen_something_else {
+                        if app::STATE.read().await.is_dead() {
+                            app::STATE.write().await.alive().unwrap();
+                        }
+    
+                        network::restart().await
+                    }
                 } else {
+                    println!("interface autopilot calls dead");
                     app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap();
                 }
             },
@@ -60,5 +76,6 @@ pub async fn event_loop() {
     }
 }
 
-event::looping::spawner!(async fn spawn_event_loop(HANDLE, event_loop));
+event::looping::works!(async fn works(HANDLE));
+event::looping::spawner!(async fn spawn_event_loop(HANDLE, event_loop, works));
 event::looping::closer!(async fn close_event_loop(HANDLE));
