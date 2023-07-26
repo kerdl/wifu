@@ -1,7 +1,8 @@
-use crate::app::pinger::PINGER;
+use crate::app;
 use crate::app::wlan::event;
 use crate::app::wlan::interface;
 use crate::app::wlan::network::{LIST, CHOSEN};
+use crate::win::wlan::acm::notification::Code as AcmNotifCode;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -16,22 +17,16 @@ pub static HANDLE: Lazy<Arc<RwLock<Option<JoinHandle<()>>>>> = Lazy::new(
 
 pub async fn event_loop() {
     loop {
-        if PINGER.read().await.has_no_ips() {
-            interface::CHOSEN.read().await.scan().await.unwrap();
-
-            if CHOSEN.write().await.choose().await.is_none() {
-                return close_event_loop().await
-            }
-
-            PINGER.write().await.update_ips()
-        }
-
-        PINGER.read().await.start().await;
-
         interface::CHOSEN.read().await.scan().await.unwrap();
 
-        if CHOSEN.write().await.choose().await.is_none() {
-            return close_event_loop().await
+        let any_cfg_networks = LIST.read().await.cfg_networks_available();
+
+        if any_cfg_networks {
+            if CHOSEN.write().await.choose().await.is_none() {
+                continue
+            } else {
+                return close_event_loop().await;
+            }
         }
     }
 }

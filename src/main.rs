@@ -2,9 +2,9 @@ mod data;
 pub use data::app;
 pub use data::win;
 
-use app::interface;
-use data::app::network;
-use data::app::pinger;
+use app::wlan::interface;
+use app::wlan::network;
+use app::pinger;
 use win::wlan::network::profile::Key;
 
 use std::path::PathBuf;
@@ -40,17 +40,6 @@ async fn main() {
 
     WLAN.set(Arc::new(win::Wlan::new(win::wlan::ClientVersion::Second).unwrap())).unwrap();
     let wlan = WLAN.get().unwrap();
-
-    interface::init_globals().await;
-    network::init_globals().await;
-
-    interface::spawn_event_handles().await;
-    network::spawn_event_handles().await;
-
-    let interfaces = interface::LIST.as_ref();
-    let chosen_interface = interface::CHOSEN_AS_GUID.as_ref();
-    let interfaces_update_sender = interface::UPDATE_SENDER.get().unwrap();
-    let interfaces_update_recv = interface::UPDATE_RECV.get().unwrap();
 
     app::run().await;
 

@@ -14,7 +14,7 @@ impl NotificationWithInterface {
         Self {
             code: notif.code,
             interface: interface::LIST.read().await
-                .get_by_guid(&notif.guid).await
+                .get_by_guid(&notif.guid)
                 .unwrap()
         }
     }
@@ -42,6 +42,5 @@ macro_rules! wait_fn {
         }
     };
 }
-
 
 pub(crate) use wait_fn;

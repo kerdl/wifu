@@ -6,7 +6,7 @@ use serde_derive::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WiFiNetwork {
+pub struct Network {
     pub ssid: String,
     pub password: Option<String>,
 }
@@ -39,7 +39,7 @@ pub enum WiFiInvalidReason {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WiFi {
-    pub networks: Vec<WiFiNetwork>,
+    pub networks: Vec<Network>,
     pub priority: WiFiPriority,
     pub scan: WiFiScan,
 }

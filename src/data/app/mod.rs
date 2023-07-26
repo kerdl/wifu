@@ -6,6 +6,8 @@ pub mod error;
 pub use pinger::{Pinger, PingErr, PingOk};
 pub use error::{Result, Error};
 
+use wlan::{interface, network};
+
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
@@ -70,8 +72,6 @@ impl Default for State {
 pub async fn dead(reason: DeadReason) {
     *STATE.write().await = State::Dead(reason.clone());
 
-    network::close_pinger_global().await;
-
     match reason {
         DeadReason::NoInterface => {
             println!("! DEAD: no available wireless interfaces");
@@ -80,29 +80,22 @@ pub async fn dead(reason: DeadReason) {
         DeadReason::NoNetwork => {
             println!("! DEAD, could not connect to any available network");
             println!("? FIX: check that at least one network defined in ./wifu-data/cfg.json is reachable");
-            network::spawn_cfg_network_wait_global().await;
         }
     }
 }
 
-pub async fn alive(spawn_pinger: bool) {
+pub async fn alive() {
     *STATE.write().await = State::Alive;
     println!("o ALIVE");
-
-    if spawn_pinger {
-        //network::choose_global(false).await;
-        println!("alive(): spawning pinger");
-        network::spawn_pinger_global().await;
-    }
 }
 
 pub async fn run() {
-    if interface::list_is_empty().await {
+    if interface::LIST.read().await.is_empty() {
         dead(DeadReason::NoInterface).await
-    } else if !network::cfg_networks_available().await {
+    } else if !network::LIST.read().await.cfg_networks_available() {
         dead(DeadReason::NoNetwork).await
     } else {
-        alive(true).await
+        alive().await
     }
 }
 

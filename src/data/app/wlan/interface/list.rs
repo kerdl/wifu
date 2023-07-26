@@ -53,23 +53,6 @@ impl Operator {
         self.list.is_empty()
     }
 
-    pub fn update(&mut self) -> win::NativeResult<()> {
-        let wlan = crate::WLAN.get().unwrap();
-        self.list = wlan.list_interfaces()?;
-    
-        Ok(())
-    }
-    
-    pub async fn update_warned(&mut self) -> win::NativeResult<()> {
-        let result = self.update();
-    
-        if let Err(err) = result.as_ref() {
-            println!("x INTERFACE list could not be updated: {:?}", err);
-        }
-    
-        result
-    }
-
     pub fn sorted_priority(&self) -> Vec<Interface> {
         let config = crate::CONFIG.get().unwrap();
         let mut prioritized = vec![];
@@ -102,6 +85,23 @@ impl Operator {
         self.sorted_priority_guids().iter()
             .map(|guid| guid::to_string(guid))
             .collect::<Vec<String>>()
+    }
+
+    pub fn update(&mut self) -> win::NativeResult<()> {
+        let wlan = crate::WLAN.get().unwrap();
+        self.list = wlan.list_interfaces()?;
+    
+        Ok(())
+    }
+    
+    pub async fn update_warned(&mut self) -> win::NativeResult<()> {
+        let result = self.update();
+    
+        if let Err(err) = result.as_ref() {
+            println!("x INTERFACE list could not be updated: {:?}", err);
+        }
+    
+        result
     }
 }
 impl Default for Operator {

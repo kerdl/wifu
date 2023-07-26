@@ -1,5 +1,6 @@
-use crate::win::guid;
+use crate::app::interface::LIST;
 use crate::app::util::priority;
+use crate::win::{self, guid};
 
 use windows::core::GUID;
 
@@ -12,16 +13,12 @@ impl Operator {
         self.chosen.as_ref()
     }
 
-    fn set(&self, guid: GUID) {
+    fn set(&mut self, guid: GUID) {
         self.chosen = Some(guid)
     }
 
     pub fn as_string(&self) -> Option<String> {
         self.chosen.map(|chosen| guid::to_string(&chosen))
-    }
-
-    pub fn as_str(&self) -> Option<&str> {
-        self.as_string().map(|s| s.as_str())
     }
 
     pub fn is_chosen(&self) -> bool {
@@ -32,16 +29,28 @@ impl Operator {
         self.chosen.map(|chosen| &chosen == guid).unwrap_or(false)
     }
 
+    pub async fn scan(&self) -> win::NativeResult<bool> {
+        let wlan = crate::WLAN.get().unwrap();
+
+        if let Some(chosen) = &self.chosen {
+            wlan.scan(chosen).await
+        } else {
+            Err(win::NativeError::NotFound)
+        }
+    }
+
     pub async fn choose(&mut self) -> Option<&GUID> {
-        let list = super::LIST.read().await;
+        let list = LIST.read().await;
         let config = crate::CONFIG.get().unwrap();
 
         let list_as_guid_string = list.as_guid_strings();
+        let self_as_string = self.as_string();
+        let self_as_str = self_as_string.as_ref().map(|s| s.as_str());
 
         let prioritized = if config.interfaces.priority.is_empty() {
-            priority::choose(self.as_str(), &list_as_guid_string).unwrap()
+            priority::choose(self_as_str, &list_as_guid_string).unwrap()
         } else {
-            priority::choose(self.as_str(), &config.interfaces.priority).unwrap()
+            priority::choose(self_as_str, &config.interfaces.priority).unwrap()
         };
 
         let interface = list.get_by_str_guid(prioritized);

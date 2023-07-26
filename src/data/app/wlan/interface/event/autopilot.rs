@@ -27,7 +27,7 @@ pub async fn event_loop() {
                 chosen.choose();
             },
             AcmNotifCode::InterfaceRemoval => {
-                network::clear_list().await;
+                network::LIST.write().await.clear();
 
                 let list = interface::LIST.read().await;
                 let chosen = interface::CHOSEN.read().await;
@@ -49,5 +49,5 @@ pub async fn event_loop() {
     }
 }
 
-event::spawner!(async fn spawn_event_loop(HANDLE, event_loop));
-event::closer!(async fn close_event_loop(HANDLE));
+event::looping::spawner!(async fn spawn_event_loop(HANDLE, event_loop));
+event::looping::closer!(async fn close_event_loop(HANDLE));
