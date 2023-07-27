@@ -9,6 +9,7 @@ use crate::app::wlan::interface;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
+use log::debug;
 
 
 pub static LIST: Lazy<Arc<RwLock<list::Operator>>> = Lazy::new(
@@ -19,17 +20,17 @@ pub static CHOSEN: Lazy<Arc<RwLock<chosen::Operator>>> = Lazy::new(
 );
 
 pub async fn start_necessary() {
-    println!("network::start_necessary()");
+    debug!("network::start_necessary()");
     event::autopilot::spawn_event_loop().await;
 }
 
 pub async fn start() {
-    println!("network::start()");
+    debug!("network::start()");
     start_necessary().await;
 
-    println!("network::start(): scanning on chosen interface {:?}", interface::CHOSEN.read().await.get());
+    debug!("network::start(): scanning on chosen interface {:?}", interface::CHOSEN.read().await.get());
     interface::CHOSEN.write().await.scan().await.unwrap();
-    println!("network::start(): updating network list on chosen interface");
+    debug!("network::start(): updating network list on chosen interface");
     LIST.write().await.update().await.unwrap();
     //CHOSEN.write().await.choose().await.unwrap();
 
@@ -37,7 +38,7 @@ pub async fn start() {
 }
 
 pub async fn end() {
-    println!("network::end()");
+    debug!("network::end()");
 
     if event::autopilot::works().await {
         event::autopilot::close_event_loop().await;
@@ -59,7 +60,7 @@ pub async fn end() {
 }
 
 pub async fn restart() {
-    println!("network::restart()");
+    debug!("network::restart()");
     end().await;
     start().await;
 }

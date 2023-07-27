@@ -30,7 +30,7 @@ pub mod looping {
                 let mut handle = $handle.write().await;
     
                 if handle.is_none() {
-                    println!("{}(): no handle", stringify!($name))
+                    log::debug!("{}(): no handle", stringify!($name))
                 }
             
                 handle.as_ref().map(|h| h.abort());

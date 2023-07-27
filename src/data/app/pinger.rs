@@ -1,10 +1,11 @@
+use super::cfg;
+
 use std::{net::SocketAddr, time::Duration};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
 use winping::AsyncPinger;
-
-use super::cfg;
+use log::debug;
 
 
 pub static PINGER: Lazy<Arc<RwLock<Pinger>>> = Lazy::new(
@@ -74,11 +75,11 @@ impl Pinger {
 
         match answer.result {
             Ok(rtt) => {
-                println!("{}: rtt={}", addr, rtt);
+                debug!("{}: rtt={}", addr, rtt);
                 return Ok(PingOk { buf, rtt })
             },
             Err(err) => {
-                println!("{}: err={}", addr, err);
+                debug!("{}: err={}", addr, err);
                 return Err(PingErr { buf, err })
             },
         }
@@ -98,7 +99,7 @@ impl Pinger {
                 continue 'addrs;
             };
 
-            println!("pinging ip: {}", addr);
+            debug!("pinging ip: {}", addr);
             
             'addr: loop {
                 match self.ping_ip_once(addr, buf).await {

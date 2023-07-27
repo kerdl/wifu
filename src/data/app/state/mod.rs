@@ -8,6 +8,7 @@ use crate::app::{interface, network};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
+use log::{debug, info};
 
 
 pub static STATE: Lazy<Arc<RwLock<Operator>>> = Lazy::new(
@@ -57,16 +58,16 @@ impl Operator {
             State::Dead(reason) => {
                 match reason {
                     DeadReason::Uninitialized => {
-                        println!("! DEAD: uninitialized");
-                        println!("? FIX: check that the app's variables are initialized correctly");
+                        info!("! DEAD: uninitialized");
+                        info!("? FIX: check that the app's variables are initialized correctly");
                     },
                     DeadReason::NoInterface => {
-                        println!("! DEAD: no available wireless interfaces");
-                        println!("? FIX: connect at least one wireless interface (USB, PCIe, virtual, etc.)");
+                        info!("! DEAD: no available wireless interfaces");
+                        info!("? FIX: connect at least one wireless interface (USB, PCIe, virtual, etc.)");
                     },
                     DeadReason::NoNetwork => {
-                        println!("! DEAD: could not connect to any available network");
-                        println!("? FIX: check that at least one network defined in config is reachable");
+                        info!("! DEAD: could not connect to any available network");
+                        info!("? FIX: check that at least one network defined in config is reachable");
                     },
                 }
             }
@@ -75,10 +76,10 @@ impl Operator {
 
     pub async fn choose(&mut self) -> &State {
         if interface::LIST.read().await.is_empty() {
-            println!("app state operator calls dead");
+            debug!("app state operator calls dead");
             self.dead(DeadReason::NoInterface).unwrap();
         } else if !network::LIST.read().await.cfg_networks_available() {
-            println!("app state operator calls dead");
+            debug!("app state operator calls dead");
             self.dead(DeadReason::NoNetwork).unwrap();
         } else if !self.is_alive() {
             self.alive().unwrap();
@@ -105,7 +106,7 @@ impl Operator {
         }
 
         self.set(State::Alive);
-        println!("o APP ALIVE");
+        info!("o APP ALIVE");
 
         Ok(())
     }

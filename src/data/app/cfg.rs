@@ -11,13 +11,39 @@ pub struct Network {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct WiFiDisconnect {
+    pub timeout_ms: u64,
+}
+impl Default for WiFiDisconnect {
+    fn default() -> Self {
+        Self {
+            timeout_ms: 4000
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WiFiConnect {
+    pub timeout_ms: u64,
+}
+impl Default for WiFiConnect {
+    fn default() -> Self {
+        Self {
+            timeout_ms: 4000
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WiFiScan {
-    pub interval_ms: u64,
+    pub timeout_ms: u64,
 }
 impl Default for WiFiScan {
     fn default() -> Self {
         Self {
-            interval_ms: 30000
+            timeout_ms: 3000
         }
     }
 }
@@ -38,8 +64,9 @@ pub enum WiFiInvalidReason {
 #[serde(rename_all = "camelCase")]
 pub struct WiFi {
     pub networks: Vec<Network>,
-    pub priority: WiFiPriority,
     pub scan: WiFiScan,
+    pub connect: WiFiConnect,
+    pub disconnect: WiFiDisconnect,
 }
 impl WiFi {
     pub fn is_valid(&self) -> Result<(), Vec<WiFiInvalidReason>> {
@@ -68,8 +95,9 @@ impl Default for WiFi {
     fn default() -> Self {
         Self {
             networks: vec![],
-            priority: WiFiPriority::SignalStrength,
             scan: WiFiScan::default(),
+            connect: WiFiConnect::default(),
+            disconnect: WiFiDisconnect::default(),
         }
     }
 }

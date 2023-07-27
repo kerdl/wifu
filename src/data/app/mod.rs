@@ -4,6 +4,7 @@ pub mod util;
 pub mod cfg;
 pub mod state;
 pub mod error;
+pub mod log;
 pub use pinger::{Pinger, PingErr, PingOk};
 pub use state::{STATE, State, DeadReason};
 pub use error::{Result, Error};

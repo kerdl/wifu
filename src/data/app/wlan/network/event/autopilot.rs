@@ -7,6 +7,7 @@ use crate::win::wlan::acm::notification::Code as AcmNotifCode;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+use log::debug;
 use once_cell::sync::Lazy;
 
 
@@ -27,50 +28,50 @@ pub async fn event_loop() {
 
         match notif.code {
             AcmNotifCode::ScanListRefresh => {
-                println!("network::autopilot: updating network list");
+                debug!("network::autopilot: updating network list");
                 LIST.write().await.update().await.unwrap();
 
-                println!("network::autopilot: getting app state");
+                debug!("network::autopilot: getting app state");
                 let app_state = app::STATE.read().await;
 
-                println!("network::autopilot: getting dead_because_no_network");
+                debug!("network::autopilot: getting dead_because_no_network");
                 let dead_because_no_network = {
                     app_state.is_dead()
                     && app_state.get_dead_reason().unwrap().is_no_network()
                 };
-                println!("network::autopilot: getting cfg_networks_available");
+                debug!("network::autopilot: getting cfg_networks_available");
                 let cfg_networks_available = LIST.read().await.cfg_networks_available();
 
                 if dead_because_no_network && cfg_networks_available {
-                    println!("network::autopilot: dead_because_no_network && cfg_networks_available");
+                    debug!("network::autopilot: dead_because_no_network && cfg_networks_available");
                     std::mem::drop(app_state);
 
                     if waiter::works().await {
-                        println!("network::autopilot: waiter works, closing");
+                        debug!("network::autopilot: waiter works, closing");
                         waiter::close_event_loop().await;
                     }
 
-                    println!("network::autopilot calls choose");
+                    debug!("network::autopilot calls choose");
                     CHOSEN.write().await.choose().await.unwrap();
                     app::STATE.write().await.alive().unwrap();
                     pinger::spawn_event_loop().await;
                 } else if !cfg_networks_available && !CHOSEN.read().await.is_chosen() && app_state.can_die() {
-                    println!("network::autopilot: !cfg_networks_available && !CHOSEN.read().await.is_chosen() && app_state.can_die()");
+                    debug!("network::autopilot: !cfg_networks_available && !CHOSEN.read().await.is_chosen() && app_state.can_die()");
                     std::mem::drop(app_state);
-                    println!("network autopilot calls dead");
+                    debug!("network autopilot calls dead");
                     app::STATE.write().await.dead(app::DeadReason::NoNetwork).unwrap();
                     waiter::spawn_event_loop().await;
                 } else if cfg_networks_available && app_state.is_dead() && app_state.get_dead_reason().unwrap().is_uninitialized() {
-                    println!("network::autopilot: cfg_networks_available && app_state.is_dead() && app_state.get_dead_reason().unwrap().is_uninitialized()");
+                    debug!("network::autopilot: cfg_networks_available && app_state.is_dead() && app_state.get_dead_reason().unwrap().is_uninitialized()");
                     std::mem::drop(app_state);
-                    println!("network autopilot calls choose");
+                    debug!("network autopilot calls choose");
                     CHOSEN.write().await.choose().await.unwrap();
                     app::STATE.write().await.alive().unwrap();
                     pinger::spawn_event_loop().await;
                 } else if cfg_networks_available && app_state.is_alive() && !CHOSEN.read().await.is_chosen() {
-                    println!("network::autopilot: cfg_networks_available && app_state.is_alive() && !CHOSEN.read().await.is_chosen()");
+                    debug!("network::autopilot: cfg_networks_available && app_state.is_alive() && !CHOSEN.read().await.is_chosen()");
                     std::mem::drop(app_state);
-                    println!("network autopilot calls choose");
+                    debug!("network autopilot calls choose");
                     CHOSEN.write().await.choose().await.unwrap();
                     pinger::spawn_event_loop().await;
                 }

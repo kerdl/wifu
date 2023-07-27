@@ -4,6 +4,7 @@ use crate::win::guid;
 use crate::win::wlan::network::{Profile, Bss};
 use crate::win::wlan::Interface;
 
+use log::info;
 use windows::core::GUID;
 
 
@@ -104,7 +105,7 @@ impl Operator {
 
             let name = list.get_name_by_guid(&iface.guid).unwrap();
             let guid_string = guid::to_string(&iface.guid);
-            println!("o INTERFACE: CHOSE {} (GUID: {})", name, guid_string);
+            info!("o INTERFACE: CHOSE {} (GUID: {})", name, guid_string);
 
             self.get()
         } else {
@@ -118,7 +119,7 @@ impl Operator {
         }
 
         let guid_string = self.as_string().unwrap();
-        println!("x INTERFACE: UNCHOSE {} (GUID: {})", self.name().unwrap(), guid_string);
+        info!("x INTERFACE: UNCHOSE {} (GUID: {})", self.name().unwrap(), guid_string);
 
         self.chosen = None;
 

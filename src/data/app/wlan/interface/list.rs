@@ -2,6 +2,7 @@ use crate::win;
 use crate::win::guid;
 use crate::win::wlan::Interface;
 
+use log::{debug, error};
 use windows::core::GUID;
 
 
@@ -88,17 +89,17 @@ impl Operator {
     }
 
     pub async fn disconnect_all_except(&self, guid: &GUID) {
-        println!("interface::disconnect_all_except({:?})", guid);
+        debug!("interface::disconnect_all_except({:?})", guid);
         let wlan = crate::WLAN.get().unwrap();
 
         for iface in self.list.iter() {
             if &iface.guid == guid {
-                println!("interface::disconnect_all_except() not disconnecting {:?}", guid);
+                debug!("interface::disconnect_all_except() not disconnecting {:?}", guid);
                 continue;
             }
 
             if let Err(err) = wlan.disconnect(&iface.guid).await {
-                println!("interface::disconnect_all_except(): warning, cannot disconnect {:?} ({:?})", &iface.guid, err)
+                debug!("interface::disconnect_all_except(): warning, cannot disconnect {:?} ({:?})", &iface.guid, err)
             }
         }
     }
@@ -114,7 +115,7 @@ impl Operator {
         let result = self.update();
     
         if let Err(err) = result.as_ref() {
-            println!("x INTERFACE list could not be updated: {:?}", err);
+            error!("x INTERFACE list could not be updated: {:?}", err);
         }
     
         result

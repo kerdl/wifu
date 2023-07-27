@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use once_cell::sync::Lazy;
+use log::debug;
 
 
 pub static HANDLE: Lazy<Arc<RwLock<Option<JoinHandle<()>>>>> = Lazy::new(
@@ -59,7 +60,7 @@ pub async fn event_loop() {
                     network::end().await;
 
                     if app::STATE.read().await.is_alive() {
-                        println!("interface autopilot calls dead");
+                        debug!("interface autopilot calls dead");
                         app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap();
                     }
                 } else if have_other_interfaces {
@@ -76,7 +77,7 @@ pub async fn event_loop() {
                         network::restart().await
                     }
                 } else {
-                    println!("interface autopilot calls dead");
+                    debug!("interface autopilot calls dead");
                     app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap();
                 }
             },

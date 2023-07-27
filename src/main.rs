@@ -2,16 +2,15 @@ mod data;
 pub use data::app;
 pub use data::win;
 
+use app::log::Logger;
 use app::wlan::interface;
 use app::wlan::network;
-use app::pinger;
-use win::wlan::network::profile::Key;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 use lazy_static::lazy_static;
 use once_cell::sync::OnceCell;
+use log::{debug, error};
 
 
 lazy_static! {
@@ -23,17 +22,19 @@ lazy_static! {
     };
 }
 
+static LOGGER: Logger = Logger;
 pub static CONFIG: OnceCell<data::app::cfg::Config> = OnceCell::new();
 pub static WLAN: OnceCell<Arc<win::Wlan>> = OnceCell::new();
 
 
 #[tokio::main]
 async fn main() {
+    Logger::init().unwrap();
     app::init_fs().await;
 
     let config = CONFIG.get().unwrap();
     if let Err(reasons) = config.is_valid() {
-        println!("x CONFIG is invalid due to the following reasons: {:?}", reasons);
+        error!("x CONFIG is invalid due to the following reasons: {:?}", reasons);
         return;
     }
 
@@ -43,10 +44,10 @@ async fn main() {
     network::start().await;
     
     if !interface::CHOSEN.write().await.is_chosen() {
-        println!("main calls dead because no interface");
+        debug!("main calls dead because no interface");
         app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap()
     } else if !network::LIST.read().await.cfg_networks_available() {
-        println!("main calls dead because no cfg_networks_available");
+        debug!("main calls dead because no cfg_networks_available");
         app::STATE.write().await.dead(app::DeadReason::NoNetwork).unwrap();
         network::event::waiter::spawn_event_loop().await;
     }

@@ -4,7 +4,6 @@ pub mod network;
 pub mod notification;
 pub use interface::Interface;
 pub use network::Network;
-use widestring::U16CStr;
 
 use crate::data::win;
 use crate::data::win::SafePCWSTR;
@@ -14,10 +13,12 @@ use crate::data::win::wlan::acm::notification::Notification as AcmNotif;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::broadcast;
+use log::debug;
 use once_cell::sync::Lazy;
 use num_traits::{FromPrimitive, ToPrimitive};
 use num_derive::{FromPrimitive, ToPrimitive};
 use rand::Rng;
+use widestring::U16CStr;
 use windows::Win32::NetworkManagement::WiFi;
 use windows::Win32::Foundation::HANDLE;
 use windows::core::GUID;
@@ -105,8 +106,6 @@ impl Wlan {
     ) {
         let sender = &*(sender_ptr as *const broadcast::Sender<AcmNotif>);
         let notification = AcmNotif::from_l2_notification_data(*notify).unwrap();
-
-        //println!("acm notification! {:?}", notification);
 
         sender.send(notification).unwrap();
     }
@@ -205,7 +204,7 @@ impl Wlan {
             };
 
             let timeout = tokio::time::timeout(
-                Duration::from_secs(4),
+                Duration::from_millis(crate::CONFIG.get().unwrap().wifi.scan.timeout_ms),
                 async move { acm_notify_receiver.recv().await }
             ).await;
 
@@ -445,7 +444,7 @@ impl Wlan {
 
         loop {
             let timeout = tokio::time::timeout(
-                Duration::from_secs(5),
+                Duration::from_millis(crate::CONFIG.get().unwrap().wifi.connect.timeout_ms),
                 async move { self.session.acm_notify_receiver.resubscribe().recv().await }
             ).await;
             if timeout.is_err() { break }
@@ -455,7 +454,7 @@ impl Wlan {
                 AcmNotifCode::ConnectionStart => (),
                 AcmNotifCode::ConnectionComplete => return Ok(true),
                 AcmNotifCode::ConnectionAttemptFail => return Ok(false),
-                _ => println!("Wlan::connect() recv {:?}", notif.code)
+                _ => debug!("Wlan::connect() recv {:?}", notif.code)
             }
         }
 
@@ -473,7 +472,7 @@ impl Wlan {
 
         loop {
             let timeout = tokio::time::timeout(
-                Duration::from_secs(5),
+                Duration::from_millis(crate::CONFIG.get().unwrap().wifi.disconnect.timeout_ms),
                 async move { self.session.acm_notify_receiver.resubscribe().recv().await }
             ).await;
             if timeout.is_err() { break }
@@ -483,7 +482,7 @@ impl Wlan {
                 AcmNotifCode::Disconnecting => (),
                 AcmNotifCode::Disconnected => return Ok(true),
                 AcmNotifCode::ConnectionAttemptFail => return Ok(false),
-                _ => println!("Wlan::disconnect() code recv: {:?}", notif.code)
+                _ => debug!("Wlan::disconnect() code recv: {:?}", notif.code)
             }
         }
 
@@ -496,7 +495,6 @@ impl Wlan {
         };
 
         let notif = acm_notify_receiver.recv().await.unwrap();
-        //println!("{:?}", notif);
         notif
     }
 }

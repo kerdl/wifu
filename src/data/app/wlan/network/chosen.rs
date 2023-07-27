@@ -3,6 +3,8 @@ use crate::app::{util::priority, wlan::{interface, network::LIST}};
 use crate::win;
 use crate::win::wlan::network::profile::Key;
 
+use log::{debug, info};
+
 pub struct Operator {
     choosing: bool,
     chosen: Option<String>
@@ -65,31 +67,31 @@ impl Operator {
             let accessable_ssids = LIST.read().await.accessable_ssids();
 
             let mut current = self.chosen.as_ref().map(|s| s.as_str());
-            println!("network::choose(): initial current={:?}", current);
+            debug!("network::choose(): initial current={:?}", current);
 
             current = priority::choose(
                 current,
                 accessable_ssids.as_slice()
             ).ok();
-            println!("network::choose(): after priority current={:?}", current);
+            debug!("network::choose(): after priority current={:?}", current);
 
             if current.is_none() {
-                println!("network::choose(): current is none, returning");
+                debug!("network::choose(): current is none, returning");
                 return None
             }
 
             self.set(current.unwrap().to_string());
-            println!("network::choose(): set current");
+            debug!("network::choose(): set current");
     
             let result = self.connect().await;
             if result.is_err() || result.is_ok() && !result.unwrap() {
-                println!("network::choose(): connection failed, retrying");
+                debug!("network::choose(): connection failed, retrying");
                 continue
             }
 
-            println!("network::choose(): chosen adapter is {:?}", interface::CHOSEN.read().await.get_interface().await);
+            debug!("network::choose(): chosen adapter is {:?}", interface::CHOSEN.read().await.get_interface().await);
 
-            println!("o NETWORK: CHOSE {}", self.get().unwrap());
+            info!("o NETWORK: CHOSE {}", self.get().unwrap());
 
             break
         }
@@ -103,7 +105,7 @@ impl Operator {
             return Err(())
         }
 
-        println!("x NETWORK: UNCHOSE {}", self.get().unwrap());
+        info!("x NETWORK: UNCHOSE {}", self.get().unwrap());
 
         self.chosen = None;
 

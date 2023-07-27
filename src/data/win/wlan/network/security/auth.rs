@@ -1,3 +1,4 @@
+use log::debug;
 use windows::Win32::NetworkManagement::WiFi;
 
 
@@ -33,7 +34,10 @@ impl Authentication {
             WiFi::DOT11_AUTH_ALGO_WPA3_ENT => Self::Wpa3Ent,
             WiFi::DOT11_AUTH_ALGO_IHV_START => Self::IhvStart,
             WiFi::DOT11_AUTH_ALGO_IHV_END => Self::IhvEnd,
-            _ => {println!("auth_algo unknown!! {:?}", auth_algo); unreachable!()}
+            _ => {
+                debug!("auth_algo unknown!! {:?}", auth_algo);
+                unreachable!()
+            }
         }
     }
 }

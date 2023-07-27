@@ -15,6 +15,7 @@ use tokio::sync::RwLock;
 use tokio::sync::broadcast::Sender;
 use tokio::task::JoinHandle;
 use once_cell::sync::{Lazy, OnceCell};
+use log::info;
 
 
 pub static HANDLE: Lazy<Arc<RwLock<Option<JoinHandle<()>>>>> = Lazy::new(
@@ -42,7 +43,7 @@ pub async fn event_loop() {
                 let description = LIST.read().await
                     .get_name_by_guid(&notif.guid).unwrap();
 
-                println!("+ INTERFACE: CONNECTED {:?} (GUID {:?})", description, notif.guid);
+                info!("+ INTERFACE: CONNECTED {:?} (GUID {:?})", description, notif.guid);
 
                 notif_with_interface = {
                     NotificationWithInterface::from_notification_global(notif.clone()).await
@@ -56,7 +57,7 @@ pub async fn event_loop() {
                 let description = LIST.read().await
                     .get_name_by_guid(&notif.guid).unwrap();
 
-                println!("- INTERFACE: DISCONNECTED {:?} (GUID {:?})", description, notif.guid);
+                info!("- INTERFACE: DISCONNECTED {:?} (GUID {:?})", description, notif.guid);
 
                 if LIST.write().await.update_warned().await.is_err() {
                     continue;
