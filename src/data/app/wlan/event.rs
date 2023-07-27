@@ -1,3 +1,7 @@
+pub enum Initiator {
+    NetworkChoose,
+}
+
 pub mod looping {
     macro_rules! works {
         (async fn $name:ident($handle:path)) => {
@@ -12,7 +16,7 @@ pub mod looping {
         (async fn $name:ident($handle:path, $function:path, $works_fn:path)) => {
             pub async fn $name() {
                 if $works_fn().await {
-                    panic!("{}(): can't spawn more that 1", stringify!($name))
+                    panic!("{}(): can't spawn more than 1", stringify!($name))
                 }
                 let mut handle = $handle.write().await;
                 *handle = Some(tokio::spawn(async move { $function().await }));

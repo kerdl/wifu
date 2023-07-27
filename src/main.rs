@@ -40,15 +40,15 @@ async fn main() {
     WLAN.set(Arc::new(win::Wlan::new(win::wlan::ClientVersion::Second).unwrap())).unwrap();
 
     interface::start().await;
+    network::start().await;
     
     if !interface::CHOSEN.write().await.is_chosen() {
+        println!("main calls dead because no interface");
         app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap()
     } else if !network::LIST.read().await.cfg_networks_available() {
+        println!("main calls dead because no cfg_networks_available");
         app::STATE.write().await.dead(app::DeadReason::NoNetwork).unwrap();
-        network::start_necessary().await;
         network::event::waiter::spawn_event_loop().await;
-    } else {
-        network::start().await;
     }
 
     std::thread::park();

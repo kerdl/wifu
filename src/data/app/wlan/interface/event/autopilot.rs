@@ -1,6 +1,6 @@
 use crate::app;
 use crate::app::wlan::event;
-use crate::app::wlan::interface;
+use crate::app::wlan::interface::{CHOSEN, LIST};
 use crate::app::wlan::network;
 use crate::win::wlan::acm::notification::Code as AcmNotifCode;
 
@@ -23,12 +23,18 @@ pub async fn event_loop() {
 
         match notif.code {
             AcmNotifCode::InterfaceArrival => {
-                let chosen_something_else = interface::CHOSEN.write().await.choose().await.is_some();
+                let chosen_something_else = CHOSEN.write().await.choose().await.is_some();
 
                 if chosen_something_else {
+                    let chosen = CHOSEN.read().await;
+                    let guid = chosen.get().unwrap();
+                    LIST.read().await.disconnect_all_except(guid).await;
+
                     if app::STATE.read().await.is_dead() {
                         app::STATE.write().await.alive().unwrap();
                     }
+
+                    std::mem::drop(chosen);
 
                     network::restart().await
                 }
@@ -36,8 +42,8 @@ pub async fn event_loop() {
             AcmNotifCode::InterfaceRemoval => {
                 network::LIST.write().await.clear();
 
-                let list = interface::LIST.read().await;
-                let chosen = interface::CHOSEN.read().await;
+                let list = LIST.read().await;
+                let chosen = CHOSEN.read().await;
 
                 let that_was_the_only_interface = {
                     chosen.is_guid_chosen(&notif.interface.guid) && list.is_empty()
@@ -49,15 +55,18 @@ pub async fn event_loop() {
                 if that_was_the_only_interface {
                     std::mem::drop(list);
                     std::mem::drop(chosen);
-                    interface::CHOSEN.write().await.unchoose().await.unwrap();
+                    CHOSEN.write().await.unchoose().await.unwrap();
                     network::end().await;
-                    println!("interface autopilot calls dead");
-                    app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap();
+
+                    if app::STATE.read().await.is_alive() {
+                        println!("interface autopilot calls dead");
+                        app::STATE.write().await.dead(app::DeadReason::NoInterface).unwrap();
+                    }
                 } else if have_other_interfaces {
                     std::mem::drop(list);
                     std::mem::drop(chosen);
 
-                    let chosen_something_else = interface::CHOSEN.write().await.choose().await.is_some();
+                    let chosen_something_else = CHOSEN.write().await.choose().await.is_some();
 
                     if chosen_something_else {
                         if app::STATE.read().await.is_dead() {

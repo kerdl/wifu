@@ -4,8 +4,6 @@ pub mod list;
 pub mod chosen;
 pub use error::Error;
 
-use crate::app;
-
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use once_cell::sync::Lazy;
@@ -37,7 +35,5 @@ pub async fn start() {
     event::acm::spawn_event_loop().await;
     event::autopilot::spawn_event_loop().await;
 
-    if CHOSEN.write().await.choose().await.is_some() {
-        CHOSEN.read().await.scan().await.unwrap();
-    }
+    CHOSEN.write().await.choose().await.unwrap();
 }

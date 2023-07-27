@@ -1,7 +1,9 @@
+use crate::app;
 use crate::app::pinger::PINGER;
 use crate::app::wlan::event;
 use crate::app::wlan::interface;
 use crate::app::wlan::network::{LIST, CHOSEN};
+use crate::app::wlan::network::event::waiter;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -31,6 +33,8 @@ pub async fn event_loop() {
         interface::CHOSEN.read().await.scan().await.unwrap();
 
         if CHOSEN.write().await.choose().await.is_none() {
+            app::STATE.write().await.dead(app::DeadReason::NoNetwork).unwrap();
+            waiter::spawn_event_loop().await;
             return close_event_loop().await
         }
     }

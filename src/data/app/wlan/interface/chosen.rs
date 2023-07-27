@@ -2,6 +2,7 @@ use crate::app::interface::LIST;
 use crate::win;
 use crate::win::guid;
 use crate::win::wlan::network::{Profile, Bss};
+use crate::win::wlan::Interface;
 
 use windows::core::GUID;
 
@@ -13,6 +14,14 @@ pub struct Operator {
 impl Operator {
     pub fn get(&self) -> Option<&GUID> {
         self.chosen.as_ref()
+    }
+
+    pub async fn get_interface(&self) -> Option<Interface> {
+        if self.get().is_none() {
+            None
+        } else {
+            LIST.read().await.get_by_guid(self.get().unwrap())
+        }
     }
 
     pub fn name(&self) -> Option<&str> {

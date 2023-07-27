@@ -199,11 +199,21 @@ impl Wlan {
             return Err(win::NativeError::from_u32(result).unwrap())
         }
 
-        let mut acm_notify_receiver = {
-            self.session.acm_notify_receiver.resubscribe()
-        };
+        loop {
+            let mut acm_notify_receiver = {
+                self.session.acm_notify_receiver.resubscribe()
+            };
 
-        while let Ok(notif) = acm_notify_receiver.recv().await {
+            let timeout = tokio::time::timeout(
+                Duration::from_secs(4),
+                async move { acm_notify_receiver.recv().await }
+            ).await;
+
+            if timeout.is_err() {
+                break
+            }
+            let notif = timeout.unwrap().unwrap();
+
             match notif.code {
                 AcmNotifCode::ScanComplete => return Ok(true),
                 AcmNotifCode::ScanFail => return Ok(false),
@@ -387,7 +397,10 @@ impl Wlan {
         Ok(())
     }
 
-    fn wlan_connection_params_safe(profile_pcwstr: SafePCWSTR, bss: &network::Bss) -> network::SafeConnectionParameters {
+    fn wlan_connection_params_safe(
+        profile_pcwstr: SafePCWSTR,
+        bss: &network::Bss
+    ) -> network::SafeConnectionParameters {
         let params = WiFi::WLAN_CONNECTION_PARAMETERS {
             wlanConnectionMode: WiFi::wlan_connection_mode_profile,
             strProfile: profile_pcwstr.0,
@@ -398,7 +411,11 @@ impl Wlan {
         network::SafeConnectionParameters(params)
     }
 
-    fn connect_safe(&self, guid: &GUID, params: network::SafeConnectionParameters) -> u32 {
+    fn connect_safe(
+        &self,
+        guid: &GUID,
+        params: network::SafeConnectionParameters
+    ) -> u32 {
         unsafe {
             WiFi::WlanConnect(
                 self.handle,
@@ -409,7 +426,12 @@ impl Wlan {
         }
     }
 
-    pub async fn connect(&self, guid: &GUID, profile: &str, bss: &network::Bss) -> win::NativeResult<bool> {
+    pub async fn connect(
+        &self,
+        guid: &GUID,
+        profile: &str,
+        bss: &network::Bss,
+    ) -> win::NativeResult<bool> {
         let profile_u16cs = widestring::U16CString::from_str(profile).unwrap();
         let profile_pcwstr = super::util::from_u16cstring_safe(&profile_u16cs);
 
@@ -424,7 +446,7 @@ impl Wlan {
         loop {
             let timeout = tokio::time::timeout(
                 Duration::from_secs(5),
-                async move {self.session.acm_notify_receiver.resubscribe().recv().await}
+                async move { self.session.acm_notify_receiver.resubscribe().recv().await }
             ).await;
             if timeout.is_err() { break }
             let notif = timeout.unwrap().unwrap();
@@ -449,15 +471,19 @@ impl Wlan {
             return Err(win::NativeError::from_u32(result).unwrap())
         }
 
-        let mut acm_notify_receiver = {
-            self.session.acm_notify_receiver.resubscribe()
-        };
+        loop {
+            let timeout = tokio::time::timeout(
+                Duration::from_secs(5),
+                async move { self.session.acm_notify_receiver.resubscribe().recv().await }
+            ).await;
+            if timeout.is_err() { break }
+            let notif = timeout.unwrap().unwrap();
 
-        while let Ok(notif) = acm_notify_receiver.recv().await {
             match notif.code {
                 AcmNotifCode::Disconnecting => (),
                 AcmNotifCode::Disconnected => return Ok(true),
-                _ => println!("disconnect() code recv: {:?}", notif.code)
+                AcmNotifCode::ConnectionAttemptFail => return Ok(false),
+                _ => println!("Wlan::disconnect() code recv: {:?}", notif.code)
             }
         }
 

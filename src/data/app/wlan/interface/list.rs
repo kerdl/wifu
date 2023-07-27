@@ -87,6 +87,22 @@ impl Operator {
             .collect::<Vec<String>>()
     }
 
+    pub async fn disconnect_all_except(&self, guid: &GUID) {
+        println!("interface::disconnect_all_except({:?})", guid);
+        let wlan = crate::WLAN.get().unwrap();
+
+        for iface in self.list.iter() {
+            if &iface.guid == guid {
+                println!("interface::disconnect_all_except() not disconnecting {:?}", guid);
+                continue;
+            }
+
+            if let Err(err) = wlan.disconnect(&iface.guid).await {
+                println!("interface::disconnect_all_except(): warning, cannot disconnect {:?} ({:?})", &iface.guid, err)
+            }
+        }
+    }
+
     pub fn update(&mut self) -> win::NativeResult<()> {
         let wlan = crate::WLAN.get().unwrap();
         self.list = wlan.list_interfaces()?;
