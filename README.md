@@ -26,7 +26,7 @@ even without my presence.
 This app **WILL NOT** be frequently maintained and improved, as it already serves the functionality I need. I will fix bugs if they are problematic to me, but no improvements. But I would love to accept your PR.
 
 ## How to run
-
+0. Install Windows 10 or 11 if still didn't
 1. Install memory-safe (!) [Rust compiler](https://www.rust-lang.org/tools/install)
 2. Install [Microsoft Visual Studio and Windows SDK](https://visualstudio.microsoft.com/downloads/)
 3. If you have [Git](https://git-scm.com/download/win), clone this repository, or download it from GitHub, if not
