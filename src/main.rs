@@ -10,11 +10,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use lazy_static::lazy_static;
 use once_cell::sync::OnceCell;
-use log::{debug, error};
+use log::{debug, info, error};
 
 
 lazy_static! {
-    pub static ref DATA_PATH: PathBuf = PathBuf::from("./wifu-data");
+    pub static ref DATA_PATH: PathBuf = PathBuf::from_iter([".", "wifu-data"]);
     pub static ref CFG_PATH: PathBuf = DATA_PATH.join("cfg.json");
     pub static ref CHANNEL: (tokio::sync::mpsc::Sender<()>, tokio::sync::RwLock<tokio::sync::mpsc::Receiver<()>>) = {
         let (tx, rx) = tokio::sync::mpsc::channel::<()>(100);
@@ -30,9 +30,16 @@ pub static WLAN: OnceCell<Arc<win::Wlan>> = OnceCell::new();
 #[tokio::main]
 async fn main() {
     Logger::init().unwrap();
-    app::init_fs().await;
-
+    let just_created_cfg = app::init_fs().await;
     let config = CONFIG.get().unwrap();
+
+    if just_created_cfg {
+        info!("o The app was initialized and a config file was created here: {}", CFG_PATH.as_path().display());
+        info!("! Now, open the config file and fill in the networks you want to use with this app");
+        info!("? \"How to\" instructions can be found here: https://github.com/kerdl/wifu");
+        return;
+    }
+
     if let Err(reasons) = config.is_valid() {
         error!("x CONFIG is invalid due to the following reasons: {:?}", reasons);
         return;
