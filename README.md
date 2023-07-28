@@ -121,17 +121,17 @@ The final config would look like this:
   },
   "wifi": {
     "networks": [
-        {
-            "ssid": "Home Wifi",
-            "password": "amogUSSR",
-        },
-        {
-            "ssid": "Unprotected WiFi",
-        },
-        {
-            "ssid": "Unprotected WiFi 2",
-            "password": null
-        }
+      {
+        "ssid": "Home Wifi",
+        "password": "amogUSSR",
+      },
+      {
+        "ssid": "Unprotected WiFi",
+      },
+      {
+        "ssid": "Unprotected WiFi 2",
+        "password": null
+      }
     ],
     "scan": {
       "timeoutMs": 3000
