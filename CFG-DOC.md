@@ -1,5 +1,5 @@
 # Config documentation
-If you want a little more from this app, you can adjust the config file, referencing to this documentation.
+If you want a little more from this app, you can adjust the config file, referring to this documentation.
 
 
 # `ping`
