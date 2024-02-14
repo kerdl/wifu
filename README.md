@@ -10,7 +10,7 @@ Basically, its functionality can be broken down into 3 steps:
 
 ## Why
 
-I have a weird infrastructure at work, where the 
+I had a weird infrastructure at work, where the 
 main Windows server connects to a wireless modem by WI-FI
 and shares that internet by LAN with everyone else.
 
@@ -23,7 +23,9 @@ much more uptime across the office,
 even without my presence.
 
 ## Remarks
-This app **WILL NOT** be frequently maintained and improved, as it already serves the functionality I need. I will fix bugs if they are problematic to me, but no improvements. But I would love to accept your PR.
+This app **WILL NOT** be maintained and improved further.
+It had served the functionality I needed, and I don't need it anymore.
+I **WILL NOT** accept your PR, create a fork instead.
 
 ## How to run
 0. Install Windows 10 or 11 if still didn't
